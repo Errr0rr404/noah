@@ -65,6 +65,8 @@ const Sound = (() => {
     crash: () => { tone(140, 0.35, 'sawtooth', 0.25); setTimeout(() => tone(90, 0.3, 'square', 0.2), 80); },
     tick: () => tone(800, 0.05, 'square', 0.12),
     perfect: () => { tone(880, 0.1); setTimeout(() => tone(1320, 0.16), 100); },
+    laser: () => { tone(1150, 0.05, 'square', 0.16); setTimeout(() => tone(430, 0.12, 'sawtooth', 0.16), 45); },
+    boom: () => { tone(180, 0.18, 'square', 0.22); setTimeout(() => tone(90, 0.24, 'sawtooth', 0.2), 60); },
   };
 })();
 
@@ -134,7 +136,7 @@ function loop() {
 /* ============================================================
    SCREEN ROUTER  (one game at a time + swipe + arrows)
    ============================================================ */
-const ORDER = ['soccer', 'cars', 'batman', 'kickboxing', 'police', 'minecraft', 'bikes', 'family', 'friends', 'nostudy'];
+const ORDER = ['soccer', 'cars', 'batman', 'kickboxing', 'police', 'blaster', 'minecraft', 'bikes', 'family', 'friends', 'nostudy'];
 const Games = {};                       // id -> { enter, leave }
 const registerGame = (id, hooks) => { Games[id] = hooks; };
 
@@ -606,6 +608,117 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 })();
 
 /* ============================================================
+   BLASTER — tap the silly space critters to blast them
+   (endless & friendly: you can't lose, just blast for a high score)
+   ============================================================ */
+(() => {
+  const zone = $('blastZone'), blaster = $('blaster'), msg = $('blastMsg');
+  const scoreEl = $('blastScore'), streakEl = $('blastStreak'), bestEl = $('blastBest');
+  // Goofy invaders — nothing scary, just silly stuff to splat
+  const critters = ['👽', '👾', '🤖', '👻', '🤡', '💩', '🦠', '🍌', '🐙', '🥦', '🧟', '🦷'];
+  const blasts = ['BLAM! 💥', 'ZAP! ⚡', 'PEW PEW! 🔫', 'SPLAT! 💦', 'KABOOM! 🎆', 'BONK! 🌟', 'GOTCHA! 😜', 'BOINK! 🤪', 'SQUISH! 🫠'];
+  let score = 0, streak = 0, best = Store.getNum('blastBest');
+  let spawnTimer = null, active = false;
+  const targets = new Set();
+
+  bestEl.textContent = best;
+
+  // The blaster sits bottom-centre; beams fire from its muzzle.
+  function muzzle() { return { x: zone.clientWidth / 2, y: zone.clientHeight - 40 }; }
+
+  function fireBeam(tx, ty) {
+    const m = muzzle();
+    const dist = Math.hypot(tx - m.x, ty - m.y);
+    const ang = Math.atan2(tx - m.x, -(ty - m.y)) * 180 / Math.PI;  // 0° = straight up
+    const beam = document.createElement('div');
+    beam.className = 'laser-beam';
+    beam.style.left = m.x + 'px';
+    beam.style.bottom = (zone.clientHeight - m.y) + 'px';
+    beam.style.height = dist + 'px';
+    beam.style.setProperty('--ang', ang + 'deg');
+    zone.appendChild(beam);
+    setTimeout(() => beam.remove(), 260);
+    blaster.classList.remove('recoil'); void blaster.offsetWidth; blaster.classList.add('recoil');
+  }
+
+  function targetCenter(t) {
+    const zr = zone.getBoundingClientRect(), r = t.getBoundingClientRect();
+    return { x: r.left - zr.left + r.width / 2, y: r.top - zr.top + r.height / 2 };
+  }
+
+  function spawnTarget() {
+    if (!active) return;
+    const mega = Math.random() < 0.14;                 // rare golden UFO worth +5
+    const t = document.createElement('div');
+    t.className = 'blast-target' + (mega ? ' mega' : '');
+    t.textContent = mega ? '🛸' : critters[randInt(0, critters.length - 1)];
+    const size = mega ? 70 : 56;
+    t.style.left = rand(8, Math.max(8, zone.clientWidth - size)) + 'px';
+    t.style.top = rand(40, Math.max(40, zone.clientHeight - size - 70)) + 'px';
+    targets.add(t);
+    zone.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    const life = setTimeout(() => escape(t), mega ? 1500 : 1900);
+    t.addEventListener('click', (e) => { e.stopPropagation(); clearTimeout(life); blast(t, e, mega); });
+    spawnTimer = setTimeout(spawnTarget, Math.max(420, 1050 - score * 14));
+  }
+
+  function blast(t, e, mega) {
+    if (!targets.has(t)) return;
+    targets.delete(t);
+    const c = targetCenter(t);
+    fireBeam(c.x, c.y);
+    const pts = mega ? 5 : 1;
+    score += pts; streak++;
+    scoreEl.textContent = score;
+    streakEl.textContent = streak;
+    t.classList.add('splat');
+    setTimeout(() => t.remove(), 320);
+    Sound.laser();
+    setTimeout(() => (mega ? Sound.boom() : Sound.pop()), 60);
+    popFromEvent(e, mega ? '+5 🛸💥' : blasts[randInt(0, blasts.length - 1)], mega ? '#ffd23f' : '#5ee7df');
+    if (score > best) { best = score; bestEl.textContent = best; Store.set('blastBest', best); }
+    if (mega) confettiBurst(60);
+    if (Math.floor(score / 10) > Math.floor((score - pts) / 10)) { confettiBurst(90); Sound.win(); }
+  }
+
+  // Escaped critter — no penalty, it just zooms off blowing a raspberry
+  function escape(t) {
+    if (!targets.has(t)) return;
+    targets.delete(t);
+    streak = 0; streakEl.textContent = 0;
+    t.classList.add('flee');
+    Sound.whoosh();
+    setTimeout(() => t.remove(), 320);
+  }
+
+  function clearTargets() { targets.forEach(t => t.remove()); targets.clear(); }
+
+  // Tapping empty space still fires a fun "pew" — no penalty, all juice
+  zone.addEventListener('click', (e) => {
+    if (!active) return;
+    const zr = zone.getBoundingClientRect();
+    fireBeam(e.clientX - zr.left, e.clientY - zr.top);
+    Sound.laser();
+  });
+
+  registerGame('blaster', {
+    enter() {
+      score = 0; streak = 0;
+      scoreEl.textContent = 0; streakEl.textContent = 0;
+      active = true;
+      msg.textContent = 'Goofy space critters invaded! Tap them to BLAST them! 👽💥';
+      spawnTimer = setTimeout(spawnTarget, 500);
+    },
+    leave() {
+      active = false;
+      clearTimeout(spawnTimer);
+      clearTargets();
+    },
+  });
+})();
+
+/* ============================================================
    MINECRAFT — block stacker (drop & align)
    ============================================================ */
 (() => {
@@ -648,12 +761,16 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     stack.style.transform = `translateY(${camera}px)`;
   }
   function spawnMoving() {
-    const w = blocks[blocks.length - 1].width;
-    mb = { x: 0, width: w, dir: 1, color: colors[blocks.length % colors.length] };
+    const below = blocks[blocks.length - 1];
+    const w = below.width;
+    // First block spawns aligned over the base so an eager first tap can't
+    // insta-lose; later blocks start from the edge for a real timing challenge.
+    const startX = (blocks.length === 1) ? below.left : 0;
+    mb = { x: startX, width: w, dir: 1, color: colors[blocks.length % colors.length] };
     moving.style.width = w + 'px';
     moving.style.height = BH + 'px';
     moving.style.bottom = (blocks.length * BH) + 'px';
-    moving.style.left = '0px';
+    moving.style.left = startX + 'px';
     styleBlock(moving, mb.color);
     moving.style.display = 'block';
     updateCamera();

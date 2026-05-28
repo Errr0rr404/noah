@@ -44,6 +44,7 @@
       <button class="tile t-dark"   data-go="batman">     <span class="t-emoji">🦇</span><span class="t-name">Bat Catch</span></button>
       <button class="tile t-red"    data-go="kickboxing"> <span class="t-emoji">🥊</span><span class="t-name">Power Punch</span></button>
       <button class="tile t-blue"   data-go="police">     <span class="t-emoji">🚓</span><span class="t-name">Police Chase</span></button>
+      <button class="tile t-space"  data-go="blaster">    <span class="t-emoji">🔫</span><span class="t-name">Blaster</span></button>
       <button class="tile t-cube"   data-go="minecraft">  <span class="t-emoji">⛏️</span><span class="t-name">Block Stack</span></button>
       <button class="tile t-orange" data-go="bikes">      <span class="t-emoji">🏍️</span><span class="t-name">Bike Run</span></button>
       <button class="tile t-pink"   data-go="family">     <span class="t-emoji">❤️</span><span class="t-name">Family</span></button>
@@ -152,6 +153,16 @@
     </div>
     <button id="copStart" class="big-btn">START 🚨</button>
     <div class="score-board" aria-live="polite">👮 <span id="copScore">0</span> &nbsp;·&nbsp; ⏱️ <span id="copTimer">15</span>s &nbsp;·&nbsp; 🏆 <span id="copBest">0</span></div>
+  </section>
+
+  <!-- ================= BLASTER ================= -->
+  <section id="blaster" class="screen game card-space" aria-label="Silly Blaster game">
+    <h2>🔫 Silly Blaster</h2>
+    <p class="card-text" id="blastMsg">Goofy space critters invaded! Tap them to BLAST them! 👽💥</p>
+    <div class="blast-zone" id="blastZone">
+      <div class="blaster" id="blaster">🔫</div>
+    </div>
+    <div class="score-board" aria-live="polite">💥 <span id="blastScore">0</span> &nbsp;·&nbsp; 🔥 <span id="blastStreak">0</span> &nbsp;·&nbsp; 🏆 <span id="blastBest">0</span></div>
   </section>
 
   <!-- ================= MINECRAFT ================= -->
