@@ -32,6 +32,9 @@ body {
   color: #1b1f3b;
   overflow-x: hidden;
   min-height: 100vh;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;          /* no iOS long-press menu on emojis */
 }
 
 h2 {
@@ -185,6 +188,7 @@ h2 {
   padding: 0 16px;
 }
 .tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -198,6 +202,26 @@ h2 {
   box-shadow: 0 8px 0 rgba(0,0,0,.18), 0 12px 22px rgba(0,0,0,.16);
   transition: transform .12s, box-shadow .12s;
 }
+.home.active .tile {
+  animation: tileIn .45s cubic-bezier(.34,1.56,.64,1) both;
+  animation-delay: calc(var(--i, 0) * .045s);
+}
+@keyframes tileIn {
+  from { opacity: 0; transform: translateY(18px) scale(.94); }
+  to   { opacity: 1; transform: none; }
+}
+.t-best {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: rgba(0,0,0,.3);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 50px;
+  pointer-events: none;
+}
+.t-gold .t-best, .t-yellow .t-best { background: rgba(0,0,0,.16); color: #4a3000; }
 .tile:hover { transform: translateY(-4px); }
 .tile:active { transform: translateY(4px); box-shadow: 0 3px 0 rgba(0,0,0,.18); }
 .t-emoji { font-size: 2.8rem; line-height: 1; filter: drop-shadow(0 3px 2px rgba(0,0,0,.25)); }
@@ -631,6 +655,17 @@ h2 {
   line-height: 1;
   z-index: 2;
 }
+.coin {
+  position: absolute;
+  font-size: 1.7rem;
+  line-height: 1;
+  z-index: 2;
+  filter: drop-shadow(0 0 8px #ffd23f);
+  animation: coinSpin 1s linear infinite;
+}
+.coin.got { animation: coinGot .25s ease forwards; }
+@keyframes coinSpin { 50% { transform: scaleX(.25); } }
+@keyframes coinGot { to { transform: scale(2.2); opacity: 0; } }
 
 /* ===================== FAMILY ===================== */
 .family-grid {
@@ -884,8 +919,11 @@ h2 {
   .hero-badge,
   .hero-title .word,
   .wave,
-  .person.fav {
+  .person.fav,
+  .coin,
+  .blast-target {
     animation: none !important;
   }
-  .screen.game.active { animation: none; }
+  .screen.game.active,
+  .home.active .tile { animation: none; }
 }

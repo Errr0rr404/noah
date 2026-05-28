@@ -70,6 +70,17 @@ const Sound = (() => {
   };
 })();
 
+/* ---------- Haptics (tiny vibration buzz where supported; silent no-op on iOS) ---------- */
+const Haptics = (() => {
+  const can = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+  const buzz = (p) => { if (!can) return; try { navigator.vibrate(p); } catch (_) {} };
+  return {
+    tap: () => buzz(10),
+    hit: () => buzz(22),
+    win: () => buzz([16, 40, 16, 40, 50]),
+  };
+})();
+
 /* ---------- Floating "+1" / emoji pop ---------- */
 function floatPop(x, y, text, color = '#fff') {
   const el = document.createElement('div');
@@ -85,6 +96,7 @@ function popFromEvent(e, text, color) {
   const p = (e && e.touches && e.touches[0]) ? e.touches[0] : e;
   const x = (p && p.clientX) || window.innerWidth / 2;
   const y = (p && p.clientY) || window.innerHeight / 2;
+  Haptics.tap();
   floatPop(x - 10, y - 30, text, color);
 }
 
@@ -99,6 +111,7 @@ sizeCanvas();
 window.addEventListener('resize', sizeCanvas);
 
 function confettiBurst(count = 90) {
+  Haptics.win();
   const colors = ['#ffd23f', '#ff5e5b', '#4d8bff', '#2ecc71', '#9b5de5', '#ff6fb5', '#ff9f1c'];
   for (let i = 0; i < count; i++) {
     confetti.push({
@@ -165,6 +178,7 @@ function show(id) {
   el.classList.add('active');
   setChrome(id !== 'home');
   window.scrollTo(0, 0);
+  if (id === 'home') refreshTileBadges();
 
   const g = Games[id];
   if (g && g.enter) g.enter();
@@ -192,9 +206,28 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* Home tiles */
-document.querySelectorAll('.tile').forEach(tile => {
+document.querySelectorAll('.tile').forEach((tile, i) => {
+  tile.style.setProperty('--i', i);
   tile.addEventListener('click', () => { Sound.pop(); go(tile.dataset.go); });
 });
+
+/* Best-score badges on the home tiles — progress at a glance */
+const TILE_BEST = {
+  soccer: ['soccerBest', '🏆'], cars: ['raceWins', '🏆'], batman: ['batBest', '🏆'],
+  kickboxing: ['punchBest', '🏆'], police: ['copBest', '🏆'], blaster: ['blastBest', '🏆'],
+  minecraft: ['stackBest', '🏆'], bikes: ['bikeBest', '🏆'], friends: ['friendsRound', '🔁'],
+};
+function refreshTileBadges() {
+  document.querySelectorAll('.tile').forEach(tile => {
+    const cfg = TILE_BEST[tile.dataset.go];
+    let badge = tile.querySelector('.t-best');
+    const n = cfg ? Store.getNum(cfg[0]) : 0;
+    if (!cfg || n <= 0) { if (badge) badge.remove(); return; }
+    if (!badge) { badge = document.createElement('span'); badge.className = 't-best'; tile.appendChild(badge); }
+    badge.textContent = cfg[1] + ' ' + n;
+  });
+}
+refreshTileBadges();
 
 /* Swipe between games (horizontal, with a comfortable threshold) */
 (() => {
@@ -882,11 +915,23 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let areaW = 0;
   let y = 0, vy = 0, dist = 0, speed = 3, running = false, rafId = null;
   let rocks = [];           // {el, x}
-  let spawnGap = 0;
+  let coins = [];           // {el, x, y}
+  let spawnGap = 0, coinGap = 0;
 
   bestEl.textContent = best;
 
   function clearRocks() { rocks.forEach(r => r.el.remove()); rocks = []; }
+  function clearCoins() { coins.forEach(c => c.el.remove()); coins = []; }
+  function spawnCoin() {
+    const el = document.createElement('div');
+    el.className = 'coin';
+    el.textContent = '🪙';
+    const cy = rand(40, 92);                 // floating at a jumpable height
+    el.style.left = areaW + 'px';
+    el.style.bottom = (GROUND + cy) + 'px';
+    area.appendChild(el);
+    coins.push({ el, x: areaW, y: cy });
+  }
   function spawnRock() {
     const el = document.createElement('div');
     el.className = 'rock';
@@ -897,7 +942,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   }
   function jump() {
     if (!running) { start(); return; }
-    if (y <= 0.5) { vy = 11; Sound.jump(); }
+    if (y <= 0.5) { vy = 11; Sound.jump(); Haptics.tap(); }
   }
   function frame() {
     if (!running) return;
@@ -919,6 +964,24 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     spawnGap -= speed;
     if (spawnGap <= 0) { spawnRock(); spawnGap = rand(150, 280) + speed * 26; }
 
+    // floating coins — jump into them for bonus metres
+    for (const c of coins) { c.x -= speed; c.el.style.left = c.x + 'px'; }
+    while (coins.length && coins[0].x < -40) { coins[0].el.remove(); coins.shift(); }
+    coinGap -= speed;
+    if (coinGap <= 0) { spawnCoin(); coinGap = rand(300, 560); }
+    for (let i = coins.length - 1; i >= 0; i--) {
+      const c = coins[i];
+      if (c.x < BIKE_X + BIKE_W && c.x + 30 > BIKE_X && Math.abs(y - c.y) < 30) {
+        c.el.classList.add('got');
+        setTimeout(() => c.el.remove(), 250);
+        coins.splice(i, 1);
+        dist += 5;                          // bonus distance
+        Sound.pop(); Haptics.tap();
+        const ar = area.getBoundingClientRect();
+        floatPop(ar.left + BIKE_X + 6, ar.top + 36, '+5 🪙', '#ffd23f');
+      }
+    }
+
     // collision (forgiving hitbox)
     for (const r of rocks) {
       if (r.x < BIKE_X + BIKE_W - 8 && r.x + 30 > BIKE_X + 8 && y < 24) { crash(); return; }
@@ -926,8 +989,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     rafId = requestAnimationFrame(frame);
   }
   function start() {
-    clearRocks();
-    y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; running = true;
+    clearRocks(); clearCoins();
+    y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160; running = true;
     bike.style.bottom = GROUND + 'px';
     scoreEl.textContent = 0;
     jumpBtn.textContent = 'JUMP 🦘';
@@ -955,7 +1018,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
   registerGame('bikes', {
     enter() { areaW = area.clientWidth; start(); },
-    leave() { running = false; cancelAnimationFrame(rafId); clearRocks(); },
+    leave() { running = false; cancelAnimationFrame(rafId); clearRocks(); clearCoins(); },
   });
 })();
 
