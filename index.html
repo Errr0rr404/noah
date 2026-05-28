@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Noah's Super World!</title>
+  <meta name="description" content="Noah's Super World — soccer, cars, Batman, Minecraft and more fun mini-games made just for Noah!" />
+  <!-- Home-screen / tablet app feel -->
+  <meta name="theme-color" content="#9face6" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Noah's World" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+</head>
+<body>
+  <!-- Floating background shapes -->
+  <div class="bg-shapes" aria-hidden="true"></div>
+
+  <!-- ============ GLOBAL UI ============ -->
+  <button id="soundToggle" class="icon-btn sound-toggle" title="Sound on/off" aria-label="Toggle sound">🔊</button>
+  <button id="homeBtn" class="icon-btn home-btn" title="Back to games" aria-label="Back to all games" hidden>🏠</button>
+  <button id="navPrev" class="nav-arrow nav-prev" aria-label="Previous game" hidden>‹</button>
+  <button id="navNext" class="nav-arrow nav-next" aria-label="Next game" hidden>›</button>
+
+  <!-- ================= HOME ================= -->
+  <section id="home" class="screen home active">
+    <header class="hero">
+      <div class="hero-badge">⭐ 5 YEARS OLD ⭐</div>
+      <h1 class="hero-title">
+        <span class="word" style="--i:0">N</span><span class="word" style="--i:1">O</span><span class="word" style="--i:2">A</span><span class="word" style="--i:3">H</span>
+      </h1>
+      <p class="hero-sub">'s SUPER WORLD <span class="wave">🦸</span></p>
+      <p class="hero-tag">Pick a game to play! 🎉</p>
+    </header>
+
+    <nav class="tile-grid" aria-label="Pick a game">
+      <button class="tile t-green"  data-go="soccer">     <span class="t-emoji">⚽</span><span class="t-name">Soccer</span></button>
+      <button class="tile t-gold"   data-go="cars">       <span class="t-emoji">🏎️</span><span class="t-name">Tap Race</span></button>
+      <button class="tile t-dark"   data-go="batman">     <span class="t-emoji">🦇</span><span class="t-name">Bat Catch</span></button>
+      <button class="tile t-red"    data-go="kickboxing"> <span class="t-emoji">🥊</span><span class="t-name">Power Punch</span></button>
+      <button class="tile t-blue"   data-go="police">     <span class="t-emoji">🚓</span><span class="t-name">Police Chase</span></button>
+      <button class="tile t-cube"   data-go="minecraft">  <span class="t-emoji">⛏️</span><span class="t-name">Block Stack</span></button>
+      <button class="tile t-orange" data-go="bikes">      <span class="t-emoji">🏍️</span><span class="t-name">Bike Run</span></button>
+      <button class="tile t-pink"   data-go="family">     <span class="t-emoji">❤️</span><span class="t-name">Family</span></button>
+      <button class="tile t-purple" data-go="friends">    <span class="t-emoji">🧑‍🤝‍🧑</span><span class="t-name">Friends</span></button>
+      <button class="tile t-yellow" data-go="nostudy">    <span class="t-emoji">📚</span><span class="t-name">No Study</span></button>
+    </nav>
+
+    <footer class="home-foot">
+      <button id="partyBtn" class="big-btn party-btn">🎉 PARTY TIME! 🎉</button>
+      <p>Made with ❤️ just for Noah</p>
+    </footer>
+  </section>
+
+  <!-- ================= SOCCER ================= -->
+  <section id="soccer" class="screen game card-green" aria-label="Soccer Star game">
+    <h2>⚽ Soccer Star</h2>
+    <p class="card-text">The keeper jumps around — shoot where he is NOT! 🥅</p>
+    <div class="soccer-field">
+      <div class="goal-frame">
+        <span class="goal-net"></span><span class="goal-net"></span><span class="goal-net"></span>
+        <div id="keeper" class="keeper">🧤</div>
+      </div>
+      <div id="ball" class="ball">⚽</div>
+      <div id="soccerFlash" class="soccer-flash"></div>
+    </div>
+    <div class="shoot-row">
+      <button class="shoot-btn" data-shoot="0" aria-label="Shoot left">⬅️</button>
+      <button class="shoot-btn" data-shoot="1" aria-label="Shoot middle">⬆️</button>
+      <button class="shoot-btn" data-shoot="2" aria-label="Shoot right">➡️</button>
+    </div>
+    <div class="score-board" aria-live="polite">⚽ <span id="soccerScore">0</span> &nbsp;·&nbsp; 🔥 <span id="soccerStreak">0</span> &nbsp;·&nbsp; 🏆 <span id="soccerBest">0</span></div>
+  </section>
+
+  <!-- ================= CAR RACE ================= -->
+  <section id="cars" class="screen game card-gold" aria-label="Tap Race game">
+    <h2>🏎️ Tap Race</h2>
+    <p class="card-text" id="raceMsg">Pick your racer, hit GO, then TAP fast to win! 🏁</p>
+    <div class="race">
+      <div class="lane"><div class="racer" id="playerCar">🏎️</div><span class="lane-tag">You</span></div>
+      <div class="lane"><div class="racer" id="rivalCar">🚗</div><span class="lane-tag">Rival</span></div>
+      <div class="finish-flag">🏁</div>
+    </div>
+    <div class="pick-group">
+      <span class="pick-label">Your car 💚</span>
+      <div class="pick-row" id="carPick">
+        <button class="pick-btn active" data-car="🏎️">🏎️</button>
+        <button class="pick-btn" data-car="🏍️">🏍️</button>
+        <button class="pick-btn" data-car="🚒">🚒</button>
+        <button class="pick-btn" data-car="🚜">🚜</button>
+        <button class="pick-btn" data-car="🚗">🚗</button>
+        <button class="pick-btn" data-car="🚕">🚕</button>
+        <button class="pick-btn" data-car="🚙">🚙</button>
+        <button class="pick-btn" data-car="🚓">🚓</button>
+      </div>
+    </div>
+    <div class="pick-group">
+      <span class="pick-label">Rival's car ❤️</span>
+      <div class="pick-row" id="rivalPick">
+        <button class="pick-btn" data-car="🏎️">🏎️</button>
+        <button class="pick-btn" data-car="🏍️">🏍️</button>
+        <button class="pick-btn" data-car="🚒">🚒</button>
+        <button class="pick-btn" data-car="🚜">🚜</button>
+        <button class="pick-btn active" data-car="🚗">🚗</button>
+        <button class="pick-btn" data-car="🚕">🚕</button>
+        <button class="pick-btn" data-car="🚙">🚙</button>
+        <button class="pick-btn" data-car="🚓">🚓</button>
+      </div>
+    </div>
+    <button id="raceBtn" class="big-btn">GO! 🚦</button>
+    <div class="score-board">🏆 Wins <span id="raceWins">0</span></div>
+  </section>
+
+  <!-- ================= BATMAN ================= -->
+  <section id="batman" class="screen game card-dark" aria-label="Bat Catch game">
+    <h2>🦇 Bat Catch</h2>
+    <p class="card-text">Catch the flying bats! Tap the moon for a surprise 🌙</p>
+    <div class="bat-sky" id="batSky">
+      <div class="moon" id="moon">🌙</div>
+      <div class="bat-logo" id="batLogo">🦇</div>
+      <div class="batman" id="batHero">🦸‍♂️</div>
+    </div>
+    <div class="score-board" aria-live="polite">🦇 Caught <span id="batScore">0</span> &nbsp;·&nbsp; 🏆 Best <span id="batBest">0</span></div>
+  </section>
+
+  <!-- ================= KICKBOXING ================= -->
+  <section id="kickboxing" class="screen game card-red" aria-label="Power Punch game">
+    <h2>🥊 Power Punch</h2>
+    <p class="card-text" id="punchMsg">Tap START, then punch as FAST as you can for 10 seconds! 💥</p>
+    <div class="punch-stage">
+      <div class="timer-pill">⏱️ <span id="punchTimer">10</span>s</div>
+      <button id="punchBag" class="punch-bag" aria-label="Punch the bag">🥊</button>
+    </div>
+    <div class="power-bar"><div id="powerFill" class="power-fill"></div></div>
+    <div id="punchPraise" class="praise"></div>
+    <button id="punchStart" class="big-btn">START 🥊</button>
+    <div class="score-board" aria-live="polite">👊 <span id="punchScore">0</span> &nbsp;·&nbsp; 🏆 Best <span id="punchBest">0</span></div>
+  </section>
+
+  <!-- ================= POLICE ================= -->
+  <section id="police" class="screen game card-blue" aria-label="Police Chase game">
+    <h2>🚓 Police Chase</h2>
+    <p class="card-text" id="copMsg">Tap START, then catch as many robbers as you can! 🚨</p>
+    <div class="chase-zone" id="chaseZone">
+      <div class="siren" id="siren">🚨</div>
+      <button id="robber" class="robber" aria-label="Catch the robber" hidden>🦹</button>
+    </div>
+    <button id="copStart" class="big-btn">START 🚨</button>
+    <div class="score-board" aria-live="polite">👮 <span id="copScore">0</span> &nbsp;·&nbsp; ⏱️ <span id="copTimer">15</span>s &nbsp;·&nbsp; 🏆 <span id="copBest">0</span></div>
+  </section>
+
+  <!-- ================= MINECRAFT ================= -->
+  <section id="minecraft" class="screen game card-cube" aria-label="Block Stack game">
+    <h2>⛏️ Block Stack</h2>
+    <p class="card-text" id="stackMsg">Tap DROP to stack the block. Keep it straight! 🟩</p>
+    <div class="stack-area" id="stackArea">
+      <div id="stack">
+        <div id="stackInner"></div>
+        <div id="movingBlock" class="block moving"></div>
+      </div>
+    </div>
+    <button id="dropBtn" class="big-btn">DROP 🧱</button>
+    <div class="score-board" aria-live="polite">🧱 Height <span id="stackScore">0</span> &nbsp;·&nbsp; 🏆 Best <span id="stackBest">0</span></div>
+  </section>
+
+  <!-- ================= BIKES ================= -->
+  <section id="bikes" class="screen game card-orange" aria-label="Bike Run game">
+    <h2>🏍️ Bike Run</h2>
+    <p class="card-text">Tap JUMP to leap over the rocks! 💨</p>
+    <div class="run-area" id="runArea">
+      <div id="bike" class="bike">🚲</div>
+      <div class="run-ground"></div>
+    </div>
+    <div class="pick-row" id="ridePick">
+      <button class="pick-btn active" data-ride="🚲">🚲</button>
+      <button class="pick-btn" data-ride="🏍️">🏍️</button>
+      <button class="pick-btn" data-ride="🛴">🛴</button>
+    </div>
+    <button id="jumpBtn" class="big-btn">JUMP 🦘</button>
+    <div class="score-board" aria-live="polite">🛣️ <span id="bikeScore">0</span> m &nbsp;·&nbsp; 🏆 Best <span id="bikeBest">0</span> m</div>
+  </section>
+
+  <!-- ================= FAMILY ================= -->
+  <section id="family" class="screen game card-pink" aria-label="Family game">
+    <h2>❤️ Noah's Family</h2>
+    <p class="card-text">Tap each person to send love! 💝</p>
+    <div class="family-grid">
+      <button class="person fav" data-love="Mom is the BEST! 💖">
+        <span class="face">👩</span><span class="name">Mom</span><span class="heart-badge">#1 ❤️</span>
+      </button>
+      <button class="person" data-love="Love you Dad! 💙">
+        <span class="face">👨</span><span class="name">Dad</span>
+      </button>
+      <button class="person" data-love="Manha is the best sister! 💛">
+        <span class="face">👧</span><span class="name">Manha</span>
+      </button>
+      <button class="person" data-love="That's me! Noah! 😎">
+        <span class="face">👦</span><span class="name">Noah</span>
+      </button>
+    </div>
+    <div class="love-meter" aria-hidden="true"><div id="loveFill" class="love-fill"></div></div>
+    <div id="loveMsg" class="love-msg"></div>
+  </section>
+
+  <!-- ================= FRIENDS ================= -->
+  <section id="friends" class="screen game card-purple" aria-label="Friends game">
+    <h2>🧑‍🤝‍🧑 My 10 Friends</h2>
+    <p class="card-text">High-five all 10 friends to win the round! 🙌</p>
+    <div id="friendsGrid" class="friends-grid"></div>
+    <div class="score-board" aria-live="polite">🔁 Round <span id="friendsRound">1</span> &nbsp;·&nbsp; 🙌 <span id="fiveScore">0</span></div>
+  </section>
+
+  <!-- ================= NO STUDY ================= -->
+  <section id="nostudy" class="screen game card-yellow" aria-label="Catch the Book game">
+    <h2>📚 Catch the Book!</h2>
+    <p class="card-text">Try to tap the book... it runs away! 😜</p>
+    <div class="study-zone" id="studyZone">
+      <button id="bookBtn" class="book-btn" aria-label="Catch the book">📚</button>
+    </div>
+    <div id="studyMsg" class="study-msg"></div>
+  </section>
+
+  <!-- Confetti canvas -->
+  <canvas id="confettiCanvas" aria-hidden="true"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>
