@@ -1,11 +1,6 @@
-# Keep the web root to just the site assets.
+# Trim the build-context upload. The Dockerfile COPYs assets explicitly,
+# so nothing here can affect what actually gets served.
 .git
-.gitignore
 .claude
 .netlify
-netlify.toml
-Dockerfile
-Caddyfile
-.dockerignore
-railway.json
-*.md
+node_modules
