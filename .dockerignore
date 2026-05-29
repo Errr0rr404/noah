@@ -1,6 +1,0 @@
-# Trim the build-context upload. The Dockerfile COPYs assets explicitly,
-# so nothing here can affect what actually gets served.
-.git
-.claude
-.netlify
-node_modules

@@ -1,8 +1,0 @@
-# Serve Noah's Super World as a static site.
-# Railway injects $PORT; fall back to 80 for local `docker run`.
-:{$PORT:80} {
-	root * /usr/share/caddy
-	encode gzip
-	try_files {path} /index.html
-	file_server
-}
