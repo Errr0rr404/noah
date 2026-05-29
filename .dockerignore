@@ -1,0 +1,11 @@
+# Keep the web root to just the site assets.
+.git
+.gitignore
+.claude
+.netlify
+netlify.toml
+Dockerfile
+Caddyfile
+.dockerignore
+railway.json
+*.md

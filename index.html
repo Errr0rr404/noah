@@ -2,24 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Noah's Super World!</title>
   <meta name="description" content="Noah's Super World — soccer, cars, Batman, Minecraft and more fun mini-games made just for Noah!" />
   <!-- Home-screen / tablet app feel -->
-  <meta name="theme-color" content="#9face6" />
+  <meta name="theme-color" content="#ffcf33" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Noah's World" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
 </head>
 <body>
-  <!-- Floating background shapes -->
-  <div class="bg-shapes" aria-hidden="true"></div>
+  <!-- Comic halftone + floating sticker shapes -->
+  <div class="bg-dots" aria-hidden="true"></div>
+  <div class="bg-stickers" aria-hidden="true">
+    <span class="sticker s1">★</span>
+    <span class="sticker s2">⚡</span>
+    <span class="sticker s3">●</span>
+    <span class="sticker s4">★</span>
+    <span class="sticker s5">✦</span>
+    <span class="sticker s6">●</span>
+  </div>
 
   <!-- ============ GLOBAL UI ============ -->
   <button id="soundToggle" class="icon-btn sound-toggle" title="Sound on/off" aria-label="Toggle sound">🔊</button>
@@ -28,28 +36,52 @@
   <button id="navNext" class="nav-arrow nav-next" aria-label="Next game" hidden>›</button>
 
   <!-- ================= HOME ================= -->
-  <section id="home" class="screen home active">
+  <section id="home" class="screen home active" data-screen-label="Home">
     <header class="hero">
-      <div class="hero-badge">⭐ 5 YEARS OLD ⭐</div>
+      <!-- Super Noah mascot, built from CSS shapes -->
+      <div class="mascot" id="mascot" aria-hidden="true">
+        <div class="mascot-burst"></div>
+        <div class="mascot-cape"></div>
+        <div class="mascot-body">
+          <span class="mascot-emblem">N</span>
+        </div>
+        <div class="mascot-arm arm-l"></div>
+        <div class="mascot-arm arm-r"></div>
+        <div class="mascot-head">
+          <div class="mascot-hair"></div>
+          <div class="mascot-mask"></div>
+          <div class="mascot-eye eye-l"></div>
+          <div class="mascot-eye eye-r"></div>
+          <div class="mascot-smile"></div>
+          <div class="mascot-cheek cheek-l"></div>
+          <div class="mascot-cheek cheek-r"></div>
+        </div>
+        <div class="mascot-shadow"></div>
+      </div>
+
+      <div class="hero-badge">⭐ NOAH · IS 5 ⭐</div>
       <h1 class="hero-title">
-        <span class="word" style="--i:0">N</span><span class="word" style="--i:1">O</span><span class="word" style="--i:2">A</span><span class="word" style="--i:3">H</span>
+        <span class="word" style="--i:0">N</span><span class="word" style="--i:1">O</span><span class="word" style="--i:2">A</span><span class="word" style="--i:3">H</span><span class="word" style="--i:4">'</span><span class="word" style="--i:5">S</span>
       </h1>
-      <p class="hero-sub">'s SUPER WORLD <span class="wave">🦸</span></p>
-      <p class="hero-tag">Pick a game to play! 🎉</p>
+      <p class="hero-sub">SUPER WORLD</p>
+      <div class="hero-bubble">
+        <span class="hero-bubble-tail"></span>
+        Pick a game, super hero! 🎮
+      </div>
     </header>
 
     <nav class="tile-grid" aria-label="Pick a game">
       <button class="tile t-green"  data-go="soccer">     <span class="t-emoji">⚽</span><span class="t-name">Soccer</span></button>
-      <button class="tile t-gold"   data-go="cars">       <span class="t-emoji">🏎️</span><span class="t-name">Tap Race</span></button>
-      <button class="tile t-dark"   data-go="batman">     <span class="t-emoji">🦇</span><span class="t-name">Bat Catch</span></button>
-      <button class="tile t-red"    data-go="kickboxing"> <span class="t-emoji">🥊</span><span class="t-name">Power Punch</span></button>
-      <button class="tile t-blue"   data-go="police">     <span class="t-emoji">🚓</span><span class="t-name">Police Chase</span></button>
-      <button class="tile t-space"  data-go="blaster">    <span class="t-emoji">🔫</span><span class="t-name">Blaster</span></button>
-      <button class="tile t-cube"   data-go="minecraft">  <span class="t-emoji">⛏️</span><span class="t-name">Block Stack</span></button>
-      <button class="tile t-orange" data-go="bikes">      <span class="t-emoji">🏍️</span><span class="t-name">Bike Run</span></button>
+      <button class="tile t-gold"   data-go="cars">       <span class="t-emoji">🏎️</span><span class="t-name">Race</span></button>
+      <button class="tile t-dark"   data-go="batman">     <span class="t-emoji">🦇</span><span class="t-name">Bats</span></button>
+      <button class="tile t-red"    data-go="kickboxing"> <span class="t-emoji">🥊</span><span class="t-name">Punch</span></button>
+      <button class="tile t-blue"   data-go="police">     <span class="t-emoji">🚓</span><span class="t-name">Police</span></button>
+      <button class="tile t-space"  data-go="blaster">    <span class="t-emoji">🔫</span><span class="t-name">Blast</span></button>
+      <button class="tile t-cube"   data-go="minecraft">  <span class="t-emoji">⛏️</span><span class="t-name">Stack</span></button>
+      <button class="tile t-orange" data-go="bikes">      <span class="t-emoji">🏍️</span><span class="t-name">Bikes</span></button>
       <button class="tile t-pink"   data-go="family">     <span class="t-emoji">❤️</span><span class="t-name">Family</span></button>
-      <button class="tile t-purple" data-go="friends">    <span class="t-emoji">🧑‍🤝‍🧑</span><span class="t-name">Friends</span></button>
-      <button class="tile t-yellow" data-go="nostudy">    <span class="t-emoji">📚</span><span class="t-name">No Study</span></button>
+      <button class="tile t-purple" data-go="friends">    <span class="t-emoji">🙌</span><span class="t-name">Friends</span></button>
+      <button class="tile t-yellow" data-go="nostudy">    <span class="t-emoji">📚</span><span class="t-name">Run!</span></button>
     </nav>
 
     <footer class="home-foot">
@@ -59,7 +91,7 @@
   </section>
 
   <!-- ================= SOCCER ================= -->
-  <section id="soccer" class="screen game card-green" aria-label="Soccer Star game">
+  <section id="soccer" class="screen game card-green" aria-label="Soccer Star game" data-screen-label="Soccer">
     <h2>⚽ Soccer Star</h2>
     <p class="card-text">The keeper jumps around — shoot where he is NOT! 🥅</p>
     <div class="soccer-field">
@@ -79,7 +111,7 @@
   </section>
 
   <!-- ================= CAR RACE ================= -->
-  <section id="cars" class="screen game card-gold" aria-label="Tap Race game">
+  <section id="cars" class="screen game card-gold" aria-label="Tap Race game" data-screen-label="Race">
     <h2>🏎️ Tap Race</h2>
     <p class="card-text" id="raceMsg">Pick your racer, hit GO, then TAP fast to win! 🏁</p>
     <div class="race">
@@ -118,7 +150,7 @@
   </section>
 
   <!-- ================= BATMAN ================= -->
-  <section id="batman" class="screen game card-dark" aria-label="Bat Catch game">
+  <section id="batman" class="screen game card-dark" aria-label="Bat Catch game" data-screen-label="Bats">
     <h2>🦇 Bat Catch</h2>
     <p class="card-text">Catch the flying bats! Tap the moon for a surprise 🌙</p>
     <div class="bat-sky" id="batSky">
@@ -130,7 +162,7 @@
   </section>
 
   <!-- ================= KICKBOXING ================= -->
-  <section id="kickboxing" class="screen game card-red" aria-label="Power Punch game">
+  <section id="kickboxing" class="screen game card-red" aria-label="Power Punch game" data-screen-label="Punch">
     <h2>🥊 Power Punch</h2>
     <p class="card-text" id="punchMsg">Tap START, then punch as FAST as you can for 10 seconds! 💥</p>
     <div class="punch-stage">
@@ -144,7 +176,7 @@
   </section>
 
   <!-- ================= POLICE ================= -->
-  <section id="police" class="screen game card-blue" aria-label="Police Chase game">
+  <section id="police" class="screen game card-blue" aria-label="Police Chase game" data-screen-label="Police">
     <h2>🚓 Police Chase</h2>
     <p class="card-text" id="copMsg">Tap START, then catch as many robbers as you can! 🚨</p>
     <div class="chase-zone" id="chaseZone">
@@ -156,7 +188,7 @@
   </section>
 
   <!-- ================= BLASTER ================= -->
-  <section id="blaster" class="screen game card-space" aria-label="Silly Blaster game">
+  <section id="blaster" class="screen game card-space" aria-label="Silly Blaster game" data-screen-label="Blast">
     <h2>🔫 Silly Blaster</h2>
     <p class="card-text" id="blastMsg">Goofy space critters invaded! Tap them to BLAST them! 👽💥</p>
     <div class="blast-zone" id="blastZone">
@@ -166,7 +198,7 @@
   </section>
 
   <!-- ================= MINECRAFT ================= -->
-  <section id="minecraft" class="screen game card-cube" aria-label="Block Stack game">
+  <section id="minecraft" class="screen game card-cube" aria-label="Block Stack game" data-screen-label="Stack">
     <h2>⛏️ Block Stack</h2>
     <p class="card-text" id="stackMsg">Tap DROP to stack the block. Keep it straight! 🟩</p>
     <div class="stack-area" id="stackArea">
@@ -180,7 +212,7 @@
   </section>
 
   <!-- ================= BIKES ================= -->
-  <section id="bikes" class="screen game card-orange" aria-label="Bike Run game">
+  <section id="bikes" class="screen game card-orange" aria-label="Bike Run game" data-screen-label="Bikes">
     <h2>🏍️ Bike Run</h2>
     <p class="card-text">Tap JUMP to leap over the rocks! 💨</p>
     <div class="run-area" id="runArea">
@@ -197,7 +229,7 @@
   </section>
 
   <!-- ================= FAMILY ================= -->
-  <section id="family" class="screen game card-pink" aria-label="Family game">
+  <section id="family" class="screen game card-pink" aria-label="Family game" data-screen-label="Family">
     <h2>❤️ Noah's Family</h2>
     <p class="card-text">Tap each person to send love! 💝</p>
     <div class="family-grid">
@@ -219,7 +251,7 @@
   </section>
 
   <!-- ================= FRIENDS ================= -->
-  <section id="friends" class="screen game card-purple" aria-label="Friends game">
+  <section id="friends" class="screen game card-purple" aria-label="Friends game" data-screen-label="Friends">
     <h2>🧑‍🤝‍🧑 My 10 Friends</h2>
     <p class="card-text">High-five all 10 friends to win the round! 🙌</p>
     <div id="friendsGrid" class="friends-grid"></div>
@@ -227,7 +259,7 @@
   </section>
 
   <!-- ================= NO STUDY ================= -->
-  <section id="nostudy" class="screen game card-yellow" aria-label="Catch the Book game">
+  <section id="nostudy" class="screen game card-yellow" aria-label="Catch the Book game" data-screen-label="Run">
     <h2>📚 Catch the Book!</h2>
     <p class="card-text">Try to tap the book... it runs away! 😜</p>
     <div class="study-zone" id="studyZone">
@@ -240,5 +272,6 @@
   <canvas id="confettiCanvas" aria-hidden="true"></canvas>
 
   <script src="script.js"></script>
+  <script src="mascot.js"></script>
 </body>
 </html>
