@@ -1223,6 +1223,76 @@ h2 {
   .t-name { font-size: 1.35rem; }
 }
 
+/* ===================== NEW JUICE (v2 upgrades) ===================== */
+/* Impact shake applied to a game stage on big moments */
+.shake { animation: shake .4s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+/* --- Soccer: flaming streak ball + diving keeper --- */
+.ball.fire { filter: drop-shadow(0 0 10px var(--orange)) drop-shadow(0 0 18px var(--red)); }
+.keeper.dive-l { animation: diveL .45s ease; }
+.keeper.dive-r { animation: diveR .45s ease; }
+@keyframes diveL { 50% { transform: translateX(-115%) rotate(-55deg); } }
+@keyframes diveR { 50% { transform: translateX(15%) rotate(55deg); } }
+
+/* --- Cars: dust puff + nitro glow --- */
+.dust {
+  position: absolute;
+  bottom: 4px;
+  font-size: 1.3rem;
+  pointer-events: none;
+  animation: dustPuff .45s ease-out forwards;
+}
+@keyframes dustPuff {
+  0% { opacity: .9; transform: translateX(0) scale(.6); }
+  100% { opacity: 0; transform: translateX(-26px) scale(1.3); }
+}
+.racer.nitro { filter: drop-shadow(-8px 0 6px var(--sun)) drop-shadow(-16px 0 10px var(--orange)); }
+
+/* --- Batman: moon cooldown after a bat-signal blast --- */
+.moon.cooldown { opacity: .4; filter: grayscale(.6); transform: scale(.9); }
+
+/* --- Blaster: bomb pickup pulses to stand out --- */
+.blast-target.bomb {
+  filter: drop-shadow(0 0 12px var(--red));
+  animation: bombPulse .6s ease-in-out infinite;
+}
+@keyframes bombPulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.18) rotate(-6deg); }
+}
+
+/* --- Bikes: clouds, shield star, shield glow, smashed rocks --- */
+.cloud {
+  position: absolute;
+  line-height: 1;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .9;
+}
+.star-pow {
+  position: absolute;
+  font-size: 1.9rem;
+  line-height: 1;
+  z-index: 2;
+  filter: drop-shadow(0 0 10px var(--sun));
+  animation: starSpin 1.1s linear infinite;
+}
+.star-pow.got { animation: coinGot .25s ease forwards; }
+@keyframes starSpin { 50% { transform: rotate(180deg) scale(1.15); } }
+.bike.shield {
+  filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px var(--sun));
+  animation: shieldPulse .5s ease-in-out infinite;
+}
+@keyframes shieldPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.rock.smashed { animation: rockSmash .25s ease forwards; pointer-events: none; }
+@keyframes rockSmash { to { transform: scale(1.8) rotate(40deg); opacity: 0; } }
+
 /* ===================== REDUCED MOTION ===================== */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -1232,7 +1302,10 @@ h2 {
   .mascot, .mascot-burst, .mascot-cape, .arm-r, .mascot-shadow,
   .person.fav,
   .coin,
-  .blast-target {
+  .blast-target,
+  .blast-target.bomb,
+  .star-pow,
+  .bike.shield {
     animation: none !important;
   }
   .screen.game.active,

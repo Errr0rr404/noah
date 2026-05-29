@@ -100,6 +100,13 @@ function popFromEvent(e, text, color) {
   floatPop(x - 10, y - 30, text, color);
 }
 
+/* ---------- Screen shake — a quick "impact" wobble on a stage ---------- */
+function shakeEl(el) {
+  if (!el) return;
+  el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 420);
+}
+
 /* ============================================================
    CONFETTI
    ============================================================ */
@@ -268,8 +275,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const ball = $('ball');
   const keeper = $('keeper');
   const flash = $('soccerFlash');
+  const field = ball.closest('.soccer-field');
   const scoreEl = $('soccerScore'), streakEl = $('soccerStreak'), bestEl = $('soccerBest');
   const zonePct = ['16.66%', '50%', '83.33%'];
+  const cheers = ['GOAL! ⚽', 'TOP BINS! 🎯', 'GOLAZO! 🌟', 'SUPER GOAL! 💥', 'WHAT A SHOT! 🚀', 'BANGER! 🔥'];
   let score = 0, streak = 0, best = Store.getNum('soccerBest');
   let keeperZone = 1, busy = false, timer = null;
 
@@ -277,7 +286,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   placeKeeper(1);
 
   function placeKeeper(z) { keeperZone = z; keeper.style.left = zonePct[z]; }
-  function keeperInterval() { return Math.max(420, 850 - score * 18); }
+  function keeperInterval() { return Math.max(900, 1400 - score * 10); }
   function keeperTick() {
     let z; do { z = randInt(0, 2); } while (z === keeperZone);
     placeKeeper(z);
@@ -300,11 +309,19 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         scoreEl.textContent = score;
         streakEl.textContent = streak;
         Sound.goal();
-        showFlash('GOAL! ⚽');
+        // Keeper dives the WRONG way — pure comedy for the kid
+        const dive = (zone === 0) ? 'dive-r' : 'dive-l';
+        keeper.classList.add(dive);
+        setTimeout(() => keeper.classList.remove(dive), 450);
+        // On a streak the ball catches fire 🔥
+        ball.classList.toggle('fire', streak >= 3);
+        showFlash(streak >= 3 ? `🔥 ${streak} IN A ROW! 🔥` : cheers[randInt(0, cheers.length - 1)]);
+        shakeEl(field);
         if (streak > best) { best = streak; bestEl.textContent = best; Store.set('soccerBest', best); }
-        if (streak % 3 === 0) confettiBurst(70);
+        if (streak % 3 === 0) { confettiBurst(70); Sound.win(); }
       } else {
         streak = 0; streakEl.textContent = 0;
+        ball.classList.remove('fire');
         keeper.classList.add('save');
         Sound.sad();
         showFlash('SAVED! 🧤');
@@ -334,11 +351,23 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
    ============================================================ */
 (() => {
   const player = $('playerCar'), rival = $('rivalCar');
+  const raceEl = player.closest('.race');
   const btn = $('raceBtn'), msg = $('raceMsg'), winsEl = $('raceWins');
   let wins = Store.getNum('raceWins');
   let state = 'idle';          // idle | countdown | racing | done
-  let pPos = 0, rPos = 0, rivalTimer = null, countTimer = null;
-  const STEP = 5.2;            // how far each tap pushes the player
+  let pPos = 0, rPos = 0, rivalTimer = null, countTimer = null, lastTap = 0;
+  const STEP = 8.5;            // how far each tap pushes the player (~12 taps to win)
+
+  // Little dust puff kicked up behind the player's car on every tap
+  function puff() {
+    const lane = player.parentElement;
+    const el = document.createElement('span');
+    el.className = 'dust';
+    el.textContent = '💨';
+    el.style.left = player.style.left;
+    lane.appendChild(el);
+    setTimeout(() => el.remove(), 450);
+  }
 
   winsEl.textContent = wins;
 
@@ -372,7 +401,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         Sound.whoosh();
         // rival creeps forward on its own — beatable by a fast tapper
         rivalTimer = setInterval(() => {
-          rPos = clamp(rPos + rand(0.9, 1.7), 0, 100);
+          rPos = clamp(rPos + rand(0.5, 1.0), 0, 100);
           place();
           if (rPos >= 100) finish(false);
         }, 90);
@@ -382,9 +411,16 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
   function tap() {
     if (state !== 'racing') return;
-    pPos = clamp(pPos + STEP, 0, 100);
+    const now = Date.now();
+    const fast = now - lastTap < 170;     // rapid taps earn a nitro boost
+    lastTap = now;
+    pPos = clamp(pPos + (fast ? STEP * 1.6 : STEP), 0, 100);
     place();
-    Sound.pop();
+    puff();
+    if (fast) {
+      player.classList.remove('nitro'); void player.offsetWidth; player.classList.add('nitro');
+      Sound.whoosh();
+    } else Sound.pop();
     if (pPos >= 100) finish(true);
   }
 
@@ -395,7 +431,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     if (playerWon) {
       wins++; winsEl.textContent = wins; Store.set('raceWins', wins);
       msg.textContent = '🏆 YOU WIN! 🏆';
-      Sound.win(); confettiBurst(140);
+      player.classList.remove('nitro');
+      Sound.win(); confettiBurst(140); shakeEl(raceEl);
     } else {
       msg.textContent = 'Rival won — tap faster next time! 🔁';
       Sound.sad();
@@ -432,7 +469,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const sky = $('batSky'), moon = $('moon'), batLogo = $('batLogo'), hero = $('batHero');
   const scoreEl = $('batScore'), bestEl = $('batBest');
   let score = 0, best = Store.getNum('batBest');
-  let spawnTimer = null, active = false;
+  let spawnTimer = null, active = false, sweepReady = true;
   const bats = new Set();
 
   bestEl.textContent = best;
@@ -452,7 +489,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     b.style.top = rand(46, Math.max(46, sky.clientHeight - 56)) + 'px';
     bats.add(b);
     sky.appendChild(b);
-    const life = setTimeout(() => { b.remove(); bats.delete(b); }, villain ? 1100 : 1500);
+    const life = setTimeout(() => { b.remove(); bats.delete(b); }, villain ? 2200 : 2800);
     b.addEventListener('click', (e) => {
       clearTimeout(life);
       const pts = villain ? 3 : 1;
@@ -466,17 +503,39 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       if (score > best) { best = score; bestEl.textContent = best; Store.set('batBest', best); }
       if (score > 0 && score % 10 === 0) { confettiBurst(80); Sound.win(); }
     });
-    const gap = Math.max(420, 1000 - score * 12);
+    const gap = Math.max(700, 1200 - score * 8);
     spawnTimer = setTimeout(spawnBat, gap);
   }
   function clearBats() { bats.forEach(b => b.remove()); bats.clear(); }
 
-  moon.addEventListener('click', () => { signal(); confettiBurst(40); });
+  // BAT-SIGNAL BLAST — tap the moon to catch every bat at once (short cooldown)
+  function sweep() {
+    if (!active) return;
+    signal();
+    if (!sweepReady) { confettiBurst(20); return; }
+    sweepReady = false;
+    moon.classList.add('cooldown');
+    let caught = 0;
+    bats.forEach(b => {
+      score += b.classList.contains('villain') ? 3 : 1;
+      caught++;
+      b.classList.add('caught');
+      setTimeout(() => b.remove(), 280);
+    });
+    bats.clear();
+    scoreEl.textContent = score;
+    if (caught > 0) {
+      Sound.win(); confettiBurst(80); shakeEl(sky);
+      if (score > best) { best = score; bestEl.textContent = best; Store.set('batBest', best); }
+    } else { confettiBurst(30); }
+    setTimeout(() => { sweepReady = true; moon.classList.remove('cooldown'); }, 2600);
+  }
+  moon.addEventListener('click', sweep);
 
   registerGame('batman', {
     enter() {
       score = 0; scoreEl.textContent = 0;
-      active = true;
+      active = true; sweepReady = true; moon.classList.remove('cooldown');
       signal();
       spawnTimer = setTimeout(spawnBat, 600);
     },
@@ -498,7 +557,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const scoreEl = $('punchScore'), bestEl = $('punchBest'), timerEl = $('punchTimer');
   const praise = $('punchPraise'), fill = $('powerFill'), msg = $('punchMsg');
   const cheers = ['POW! 💥', 'BAM! 👊', 'WHAM! 🥊', 'BOOM! 💢', 'KAPOW! ⭐', 'Strong! 💪'];
-  let score = 0, best = Store.getNum('punchBest'), time = 10, running = false, timer = null;
+  const belts = [[0, '🤍 White Belt'], [8, '💛 Yellow Belt'], [16, '🧡 Orange Belt'], [26, '💚 Green Belt'], [38, '💙 Blue Belt'], [52, '❤️ Red Belt'], [70, '🥋 BLACK BELT!']];
+  const stage = bag.closest('.punch-stage');
+  let score = 0, best = Store.getNum('punchBest'), time = 10, running = false, timer = null, beltIdx = 0;
 
   bestEl.textContent = best;
 
@@ -506,7 +567,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   function startChallenge() {
     if (running) return;
     running = true;
-    score = 0; scoreEl.textContent = 0;
+    score = 0; scoreEl.textContent = 0; beltIdx = 0;
     fill.style.width = '0%';
     praise.textContent = '';
     setTimer(10);
@@ -541,14 +602,28 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     score++;
     scoreEl.textContent = score;
     fill.style.width = clamp(score * 2.2, 0, 100) + '%';
-    praise.textContent = cheers[randInt(0, cheers.length - 1)];
+    // Belt promotion as the punch count climbs
+    let b = 0;
+    for (let i = belts.length - 1; i >= 0; i--) { if (score >= belts[i][0]) { b = i; break; } }
+    if (b > beltIdx) {
+      beltIdx = b;
+      msg.textContent = `NEW RANK: ${belts[b][1]}`;
+      confettiBurst(60); Sound.perfect();
+    }
+    // Every 10th hit is a screen-shaking MEGA PUNCH
+    if (score % 10 === 0) {
+      praise.textContent = 'MEGA PUNCH! 💥🔥';
+      Sound.boom(); confettiBurst(50); shakeEl(stage);
+    } else {
+      praise.textContent = cheers[randInt(0, cheers.length - 1)];
+    }
     popFromEvent(e, '+1', '#fff');
   });
   startBtn.addEventListener('click', () => { if (!running) startChallenge(); });
 
   registerGame('kickboxing', {
     enter() {
-      running = false; score = 0; scoreEl.textContent = 0;
+      running = false; score = 0; scoreEl.textContent = 0; beltIdx = 0;
       fill.style.width = '0%'; setTimer(10);
       startBtn.textContent = 'START 🥊';
       msg.textContent = 'Tap START, then punch as FAST as you can for 10 seconds! 💥';
@@ -566,7 +641,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const startBtn = $('copStart'), scoreEl = $('copScore'), bestEl = $('copBest');
   const timerEl = $('copTimer'), msg = $('copMsg');
   let score = 0, best = Store.getNum('copBest'), time = 15, running = false;
-  let clock = null, fleeTimer = null;
+  let clock = null, fleeTimer = null, combo = 0, lastCatch = 0;
 
   bestEl.textContent = best;
 
@@ -576,7 +651,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     robber.style.top = rand(12, Math.max(12, maxY)) + 'px';
     robber.classList.remove('pop'); void robber.offsetWidth; robber.classList.add('pop');
   }
-  function fleeInterval() { return Math.max(550, 1300 - score * 35); }
+  function fleeInterval() { return Math.max(1100, 1900 - score * 20); }
   function scheduleFlee() {
     clearTimeout(fleeTimer);
     fleeTimer = setTimeout(() => { if (running) { moveRobber(); scheduleFlee(); } }, fleeInterval());
@@ -586,7 +661,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   function start() {
     if (running) return;
     running = true;
-    score = 0; scoreEl.textContent = 0;
+    score = 0; scoreEl.textContent = 0; combo = 0; lastCatch = 0;
     time = 15; timerEl.textContent = time;
     robber.hidden = false;
     moveRobber();
@@ -617,11 +692,17 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
   robber.addEventListener('click', (e) => {
     if (!running) return;
-    score++; scoreEl.textContent = score;
+    const now = Date.now();
+    if (now - lastCatch < 1200) combo++; else combo = 1;
+    lastCatch = now;
+    const onCombo = combo >= 3;
+    score += onCombo ? 2 : 1;          // a hot streak catches are worth double
+    scoreEl.textContent = score;
     Sound.siren();
     siren.classList.add('active');
     setTimeout(() => siren.classList.remove('active'), 600);
-    popFromEvent(e, 'CAUGHT! 🚔', '#fff');
+    popFromEvent(e, onCombo ? `COMBO x${combo}! 🔥` : 'CAUGHT! 🚔', onCombo ? '#ffd23f' : '#fff');
+    if (onCombo) shakeEl(zone);
     moveRobber();
     scheduleFlee();
     if (score % 5 === 0) confettiBurst(70);
@@ -681,19 +762,46 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
   function spawnTarget() {
     if (!active) return;
-    const mega = Math.random() < 0.14;                 // rare golden UFO worth +5
+    const roll = Math.random();
+    const bomb = roll < 0.07;                           // rare bomb clears the screen
+    const mega = !bomb && roll < 0.21;                  // golden UFO worth +5
     const t = document.createElement('div');
-    t.className = 'blast-target' + (mega ? ' mega' : '');
-    t.textContent = mega ? '🛸' : critters[randInt(0, critters.length - 1)];
+    t.className = 'blast-target' + (mega ? ' mega' : '') + (bomb ? ' bomb' : '');
+    t.textContent = bomb ? '💣' : (mega ? '🛸' : critters[randInt(0, critters.length - 1)]);
     const size = mega ? 70 : 56;
     t.style.left = rand(8, Math.max(8, zone.clientWidth - size)) + 'px';
     t.style.top = rand(40, Math.max(40, zone.clientHeight - size - 70)) + 'px';
     targets.add(t);
     zone.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
-    const life = setTimeout(() => escape(t), mega ? 1500 : 1900);
-    t.addEventListener('click', (e) => { e.stopPropagation(); clearTimeout(life); blast(t, e, mega); });
+    const life = setTimeout(() => escape(t), mega || bomb ? 2400 : 2900);
+    t.addEventListener('click', (e) => {
+      e.stopPropagation(); clearTimeout(life);
+      if (bomb) bombBlast(t, e); else blast(t, e, mega);
+    });
     spawnTimer = setTimeout(spawnTarget, Math.max(420, 1050 - score * 14));
+  }
+
+  // Tap the bomb to splat EVERY critter on screen at once
+  function bombBlast(bombT, e) {
+    if (!targets.has(bombT)) return;
+    targets.delete(bombT);
+    const bc = targetCenter(bombT);
+    fireBeam(bc.x, bc.y);
+    bombT.classList.add('splat');
+    setTimeout(() => bombT.remove(), 320);
+    let gained = 1;
+    targets.forEach(t => {
+      gained++;
+      t.classList.add('splat');
+      setTimeout(() => t.remove(), 320);
+    });
+    targets.clear();
+    score += gained; streak += gained;
+    scoreEl.textContent = score; streakEl.textContent = streak;
+    Sound.boom(); confettiBurst(100); shakeEl(zone);
+    popFromEvent(e, `💣 BOOM! +${gained}`, '#ff9f1c');
+    if (score > best) { best = score; bestEl.textContent = best; Store.set('blastBest', best); }
   }
 
   function blast(t, e, mega) {
@@ -770,7 +878,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let areaW = 0, areaH = 0;
   let blocks = [];          // {left, width}
   let mb = null;            // {x, width, dir, color}
-  let speed = 2, rafId = null, over = false;
+  let speed = 2, rafId = null, over = false, perfectStreak = 0;
 
   bestEl.textContent = best;
 
@@ -834,10 +942,11 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
   function reset() {
     over = false;
+    perfectStreak = 0;
     inner.innerHTML = '';
     blocks = [];
     areaW = area.clientWidth; areaH = area.clientHeight;
-    speed = Math.max(1.8, areaW / 150);
+    speed = Math.max(1.2, areaW / 230);
     const baseW = Math.min(150, areaW * 0.5);
     blocks.push({ left: (areaW - baseW) / 2, width: baseW });
     renderPlaced(blocks[0], 0);
@@ -862,20 +971,27 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       gameOver();
       return;
     }
-    // overhang slice falls away
+    // overhang slice falls away — small misses (<=12px) snap to a perfect,
+    // full-width block so a young player's tower keeps its size.
     const overhang = mb.width - overlap;
-    if (overhang > 1) {
+    let placedLeft = left, placedWidth = overlap;
+    if (overhang > 12) {
       const hangLeft = (mb.x < left) ? mb.x : right;
       fallaway(hangLeft, overhang, mb.color);
+      perfectStreak = 0;
     } else {
+      placedLeft = top.left; placedWidth = top.width;
+      perfectStreak++;
       Sound.perfect();
-      confettiBurst(30);
+      confettiBurst(perfectStreak >= 3 ? 60 : 30);
+      msg.textContent = perfectStreak >= 2 ? `PERFECT! x${perfectStreak} 🌟` : 'PERFECT! 🌟';
+      if (perfectStreak >= 3) shakeEl(area);
     }
-    blocks.push({ left, width: overlap });
+    blocks.push({ left: placedLeft, width: placedWidth });
     renderPlaced(blocks[blocks.length - 1], blocks.length - 1);
     scoreEl.textContent = blocks.length - 1;
     Sound.pop();
-    speed = Math.min(7, speed + 0.18);
+    speed = Math.min(4.5, speed + 0.10);
     if ((blocks.length - 1) % 10 === 0) { confettiBurst(90); Sound.win(); }
     spawnMoving();
   }
@@ -916,12 +1032,37 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let y = 0, vy = 0, dist = 0, speed = 3, running = false, rafId = null;
   let rocks = [];           // {el, x}
   let coins = [];           // {el, x, y}
-  let spawnGap = 0, coinGap = 0;
+  let clouds = [];          // {el, x, sp}   drifting background (parallax)
+  let stars = [];           // {el, x, y}    shield power-ups
+  let spawnGap = 0, coinGap = 0, cloudGap = 0, starGap = 0;
+  let jumps = 0, shieldUntil = 0;
 
   bestEl.textContent = best;
 
   function clearRocks() { rocks.forEach(r => r.el.remove()); rocks = []; }
   function clearCoins() { coins.forEach(c => c.el.remove()); coins = []; }
+  function clearClouds() { clouds.forEach(c => c.el.remove()); clouds = []; }
+  function clearStars() { stars.forEach(s => s.el.remove()); stars = []; }
+  function spawnCloud() {
+    const el = document.createElement('div');
+    el.className = 'cloud';
+    el.textContent = Math.random() < 0.5 ? '☁️' : '⛅';
+    el.style.left = areaW + 'px';
+    el.style.bottom = rand(78, 150) + 'px';
+    el.style.fontSize = rand(1.4, 2.6).toFixed(2) + 'rem';
+    area.appendChild(el);
+    clouds.push({ el, x: areaW, sp: rand(0.3, 0.6) });
+  }
+  function spawnStar() {
+    const el = document.createElement('div');
+    el.className = 'star-pow';
+    el.textContent = '⭐';
+    const sy = rand(42, 92);
+    el.style.left = areaW + 'px';
+    el.style.bottom = (GROUND + sy) + 'px';
+    area.appendChild(el);
+    stars.push({ el, x: areaW, y: sy });
+  }
   function spawnCoin() {
     const el = document.createElement('div');
     el.className = 'coin';
@@ -942,19 +1083,33 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   }
   function jump() {
     if (!running) { start(); return; }
-    if (y <= 0.5) { vy = 11; Sound.jump(); Haptics.tap(); }
+    // Double-jump: one launch from the ground + one extra mid-air hop
+    if (jumps < 2) {
+      vy = jumps === 0 ? 12.5 : 11;
+      jumps++;
+      Sound.jump(); Haptics.tap();
+    }
   }
   function frame() {
     if (!running) return;
     // physics
-    vy -= 0.62; y += vy;
-    if (y <= 0) { y = 0; vy = 0; }
+    vy -= 0.55; y += vy;
+    if (y <= 0) { y = 0; vy = 0; jumps = 0; }   // landed → jumps refill
     bike.style.bottom = (GROUND + y) + 'px';
 
+    const shielded = Date.now() < shieldUntil;
+    bike.classList.toggle('shield', shielded);
+
     // world speed ramps up slowly
-    speed = 3 + dist * 0.0016;
+    speed = 2.4 + dist * 0.0010;
     dist += speed * 0.12;
     scoreEl.textContent = Math.floor(dist);
+
+    // drifting clouds (slow parallax behind the action)
+    for (const c of clouds) { c.x -= speed * c.sp; c.el.style.left = c.x + 'px'; }
+    while (clouds.length && clouds[0].x < -90) { clouds[0].el.remove(); clouds.shift(); }
+    cloudGap -= speed;
+    if (cloudGap <= 0) { spawnCloud(); cloudGap = rand(220, 440); }
 
     // move rocks
     for (const r of rocks) { r.x -= speed; r.el.style.left = r.x + 'px'; }
@@ -962,7 +1117,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
     // spawn rocks with a clearable gap
     spawnGap -= speed;
-    if (spawnGap <= 0) { spawnRock(); spawnGap = rand(150, 280) + speed * 26; }
+    if (spawnGap <= 0) { spawnRock(); spawnGap = rand(240, 400) + speed * 34; }
 
     // floating coins — jump into them for bonus metres
     for (const c of coins) { c.x -= speed; c.el.style.left = c.x + 'px'; }
@@ -982,15 +1137,47 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       }
     }
 
-    // collision (forgiving hitbox)
-    for (const r of rocks) {
-      if (r.x < BIKE_X + BIKE_W - 8 && r.x + 30 > BIKE_X + 8 && y < 24) { crash(); return; }
+    // shield stars — grab one for ~5s of invincibility
+    for (const s of stars) { s.x -= speed; s.el.style.left = s.x + 'px'; }
+    while (stars.length && stars[0].x < -40) { stars[0].el.remove(); stars.shift(); }
+    starGap -= speed;
+    if (starGap <= 0) { spawnStar(); starGap = rand(900, 1500); }
+    for (let i = stars.length - 1; i >= 0; i--) {
+      const s = stars[i];
+      if (s.x < BIKE_X + BIKE_W && s.x + 30 > BIKE_X && Math.abs(y - s.y) < 32) {
+        s.el.classList.add('got');
+        setTimeout(() => s.el.remove(), 250);
+        stars.splice(i, 1);
+        shieldUntil = Date.now() + 5000;
+        Sound.perfect(); Haptics.hit();
+        const ar = area.getBoundingClientRect();
+        floatPop(ar.left + BIKE_X + 6, ar.top + 30, 'SHIELD! ⭐', '#ffd23f');
+      }
+    }
+
+    // collision — while shielded, smash through rocks instead of crashing
+    if (shielded) {
+      for (let i = rocks.length - 1; i >= 0; i--) {
+        const r = rocks[i];
+        if (r.x < BIKE_X + BIKE_W - 6 && r.x + 30 > BIKE_X + 6 && y < 20) {
+          r.el.classList.add('smashed');
+          setTimeout(() => r.el.remove(), 250);
+          rocks.splice(i, 1);
+          Sound.boom();
+        }
+      }
+    } else {
+      for (const r of rocks) {
+        if (r.x < BIKE_X + BIKE_W - 16 && r.x + 30 > BIKE_X + 16 && y < 16) { crash(); return; }
+      }
     }
     rafId = requestAnimationFrame(frame);
   }
   function start() {
-    clearRocks(); clearCoins();
-    y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160; running = true;
+    clearRocks(); clearCoins(); clearClouds(); clearStars();
+    y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160;
+    cloudGap = 0; starGap = 600; jumps = 0; shieldUntil = 0; running = true;
+    bike.classList.remove('shield');
     bike.style.bottom = GROUND + 'px';
     scoreEl.textContent = 0;
     jumpBtn.textContent = 'JUMP 🦘';
@@ -1018,7 +1205,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
   registerGame('bikes', {
     enter() { areaW = area.clientWidth; start(); },
-    leave() { running = false; cancelAnimationFrame(rafId); clearRocks(); clearCoins(); },
+    leave() { running = false; cancelAnimationFrame(rafId); clearRocks(); clearCoins(); clearClouds(); clearStars(); bike.classList.remove('shield'); },
   });
 })();
 
@@ -1042,6 +1229,14 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       if (love >= 100) {
         msg.textContent = "Noah's family is FULL of love! 💖";
         confettiBurst(120); Sound.win();
+        const hearts = ['💖', '💝', '💞', '❤️', '💕', '💗'];
+        for (let i = 0; i < 14; i++) {
+          setTimeout(() => floatPop(
+            rand(40, innerWidth - 40),
+            rand(innerHeight * 0.4, innerHeight * 0.7),
+            hearts[randInt(0, hearts.length - 1)], '#ff6fb5'
+          ), i * 65);
+        }
         love = 0;
         setTimeout(() => { fill.style.width = '0%'; }, 700);
       } else if (p.classList.contains('fav')) {
@@ -1057,7 +1252,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
    ============================================================ */
 (() => {
   const grid = $('friendsGrid'), scoreEl = $('fiveScore'), roundEl = $('friendsRound');
+  const note = document.querySelector('#friends .card-text');
   const faces = ['👦', '👧', '🧒', '👦🏽', '👧🏾', '🧒🏼', '👦🏿', '👧🏻', '🧒🏽', '👦🏼'];
+  const reactions = ['🙌', '✋', '🤚', '👏', '🤩', '😄', '🎉'];
   let total = Store.getNum('fives');
   let round = Store.getNum('friendsRound', 1);
   let done = new Set();
@@ -1073,21 +1270,29 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     btn.addEventListener('click', (e) => {
       btn.classList.remove('fived'); void btn.offsetWidth; btn.classList.add('fived');
       Sound.pop();
-      popFromEvent(e, '🙌', '#fff');
+      popFromEvent(e, reactions[randInt(0, reactions.length - 1)], '#fff');
       total++; scoreEl.textContent = total; Store.set('fives', total);
       done.add(idx);
+      const left = faces.length - done.size;
       if (done.size === faces.length) {
+        note.textContent = '🎉 Round complete! High-five them all again! 🙌';
         confettiBurst(120); Sound.win();
         round++; roundEl.textContent = round; Store.set('friendsRound', round);
         done.clear();
         setTimeout(() => grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived')), 700);
+      } else {
+        note.textContent = `${left} more friend${left === 1 ? '' : 's'} to high-five! ✋`;
       }
     });
     grid.appendChild(btn);
   });
 
   registerGame('friends', {
-    enter() { done.clear(); grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived')); },
+    enter() {
+      done.clear();
+      note.textContent = 'High-five all 10 friends to win the round! 🙌';
+      grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived'));
+    },
     leave() {},
   });
 })();
@@ -1116,9 +1321,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       confettiBurst(120); Sound.win();
       center();
     } else {
-      msg.textContent = dodges[randInt(0, dodges.length - 1)];
+      const close = taps % 6 === 5;       // one tap away from catching it
+      msg.textContent = close ? 'So close! One more tap! 😮' : dodges[randInt(0, dodges.length - 1)];
       flee();
-      popFromEvent(e, '💨', '#fff');
+      popFromEvent(e, close ? '😅' : '💨', '#fff');
     }
   });
   // Desktop: book also dodges when the pointer gets close
