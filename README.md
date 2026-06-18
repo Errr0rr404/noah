@@ -18,6 +18,7 @@ static HTML/CSS/JS.
 - `script.js` — app navigation, sound engine, and game logic
 - `mascot.js` — mascot celebration reactions (hooks into confetti / tile taps)
 - `netlify.toml` — Netlify config (publishes the repo root, no build command)
+- `PLAN.md` — multi-agent improvement plan / working notes
 
 ## Games
 

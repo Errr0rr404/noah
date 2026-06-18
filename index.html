@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Noah's Super World!</title>
   <meta name="description" content="Noah's Super World — soccer, cars, Batman, Minecraft and more fun mini-games made just for Noah!" />
   <!-- Home-screen / tablet app feel -->
@@ -13,7 +13,8 @@
   <meta name="apple-mobile-web-app-title" content="Noah's World" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" /></noscript>
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
 </head>
@@ -35,6 +36,7 @@
   <button id="navPrev" class="nav-arrow nav-prev" aria-label="Previous game" hidden>‹</button>
   <button id="navNext" class="nav-arrow nav-next" aria-label="Next game" hidden>›</button>
 
+  <main>
   <!-- ================= HOME ================= -->
   <section id="home" class="screen home active" data-screen-label="Home">
     <header class="hero">
@@ -93,7 +95,7 @@
   <!-- ================= SOCCER ================= -->
   <section id="soccer" class="screen game card-green" aria-label="Soccer Star game" data-screen-label="Soccer">
     <h2>⚽ Soccer Star</h2>
-    <p class="card-text">The keeper jumps around — shoot where he is NOT! 🥅</p>
+    <p class="card-text">Tap a glowing 💚 lane to score past the keeper! 🥅</p>
     <div class="soccer-field">
       <div class="goal-frame">
         <span class="goal-net"></span><span class="goal-net"></span><span class="goal-net"></span>
@@ -122,27 +124,27 @@
     <div class="pick-group">
       <span class="pick-label">Your car 💚</span>
       <div class="pick-row" id="carPick">
-        <button class="pick-btn active" data-car="🏎️">🏎️</button>
-        <button class="pick-btn" data-car="🏍️">🏍️</button>
-        <button class="pick-btn" data-car="🚒">🚒</button>
-        <button class="pick-btn" data-car="🚜">🚜</button>
-        <button class="pick-btn" data-car="🚗">🚗</button>
-        <button class="pick-btn" data-car="🚕">🚕</button>
-        <button class="pick-btn" data-car="🚙">🚙</button>
-        <button class="pick-btn" data-car="🚓">🚓</button>
+        <button class="pick-btn active" data-car="🏎️" aria-label="Race car">🏎️</button>
+        <button class="pick-btn" data-car="🏍️" aria-label="Motorbike">🏍️</button>
+        <button class="pick-btn" data-car="🚒" aria-label="Fire truck">🚒</button>
+        <button class="pick-btn" data-car="🚜" aria-label="Tractor">🚜</button>
+        <button class="pick-btn" data-car="🚗" aria-label="Car">🚗</button>
+        <button class="pick-btn" data-car="🚕" aria-label="Taxi">🚕</button>
+        <button class="pick-btn" data-car="🚙" aria-label="SUV">🚙</button>
+        <button class="pick-btn" data-car="🚓" aria-label="Police car">🚓</button>
       </div>
     </div>
     <div class="pick-group">
       <span class="pick-label">Rival's car ❤️</span>
       <div class="pick-row" id="rivalPick">
-        <button class="pick-btn" data-car="🏎️">🏎️</button>
-        <button class="pick-btn" data-car="🏍️">🏍️</button>
-        <button class="pick-btn" data-car="🚒">🚒</button>
-        <button class="pick-btn" data-car="🚜">🚜</button>
-        <button class="pick-btn active" data-car="🚗">🚗</button>
-        <button class="pick-btn" data-car="🚕">🚕</button>
-        <button class="pick-btn" data-car="🚙">🚙</button>
-        <button class="pick-btn" data-car="🚓">🚓</button>
+        <button class="pick-btn" data-car="🏎️" aria-label="Race car">🏎️</button>
+        <button class="pick-btn" data-car="🏍️" aria-label="Motorbike">🏍️</button>
+        <button class="pick-btn" data-car="🚒" aria-label="Fire truck">🚒</button>
+        <button class="pick-btn" data-car="🚜" aria-label="Tractor">🚜</button>
+        <button class="pick-btn active" data-car="🚗" aria-label="Car">🚗</button>
+        <button class="pick-btn" data-car="🚕" aria-label="Taxi">🚕</button>
+        <button class="pick-btn" data-car="🚙" aria-label="SUV">🚙</button>
+        <button class="pick-btn" data-car="🚓" aria-label="Police car">🚓</button>
       </div>
     </div>
     <button id="raceBtn" class="big-btn">GO! 🚦</button>
@@ -154,7 +156,7 @@
     <h2>🦇 Bat Catch</h2>
     <p class="card-text">Catch the flying bats! Tap the moon for a BAT-SIGNAL blast 🌙</p>
     <div class="bat-sky" id="batSky">
-      <div class="moon" id="moon">🌙</div>
+      <div class="moon" id="moon" role="button" tabindex="0" aria-label="Bat-signal blast">🌙</div>
       <div class="bat-logo" id="batLogo">🦇</div>
       <div class="batman" id="batHero">🦸‍♂️</div>
     </div>
@@ -192,7 +194,7 @@
     <h2>🔫 Silly Blaster</h2>
     <p class="card-text" id="blastMsg">Goofy space critters invaded! Tap to BLAST them — hit the 💣 to clear them all! 👽💥</p>
     <div class="blast-zone" id="blastZone">
-      <div class="blaster" id="blaster">🔫</div>
+      <div class="blaster" id="blasterGun">🔫</div>
     </div>
     <div class="score-board" aria-live="polite">💥 <span id="blastScore">0</span> &nbsp;·&nbsp; 🔥 <span id="blastStreak">0</span> &nbsp;·&nbsp; 🏆 <span id="blastBest">0</span></div>
   </section>
@@ -216,13 +218,14 @@
     <h2>🏍️ Bike Run</h2>
     <p class="card-text">Tap JUMP to leap rocks — tap twice for a DOUBLE jump! Grab ⭐ for a shield 💨</p>
     <div class="run-area" id="runArea">
+      <div id="bikeHearts" class="bike-hearts" aria-hidden="true">❤️❤️❤️</div>
       <div id="bike" class="bike">🚲</div>
       <div class="run-ground"></div>
     </div>
     <div class="pick-row" id="ridePick">
-      <button class="pick-btn active" data-ride="🚲">🚲</button>
-      <button class="pick-btn" data-ride="🏍️">🏍️</button>
-      <button class="pick-btn" data-ride="🛴">🛴</button>
+      <button class="pick-btn active" data-ride="🚲" aria-label="Bicycle">🚲</button>
+      <button class="pick-btn" data-ride="🏍️" aria-label="Motorbike">🏍️</button>
+      <button class="pick-btn" data-ride="🛴" aria-label="Scooter">🛴</button>
     </div>
     <button id="jumpBtn" class="big-btn">JUMP 🦘</button>
     <div class="score-board" aria-live="polite">🛣️ <span id="bikeScore">0</span> m &nbsp;·&nbsp; 🏆 Best <span id="bikeBest">0</span> m</div>
@@ -268,6 +271,7 @@
     <div id="studyMsg" class="study-msg"></div>
   </section>
 
+  </main>
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" aria-hidden="true"></canvas>
 

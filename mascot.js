@@ -16,18 +16,21 @@
     cheerTimer = setTimeout(() => mascot.classList.remove('cheer'), 750);
   }
 
-  // Celebrate whenever confetti bursts (wins, streaks, party button…)
-  if (typeof window.confettiBurst === 'function') {
-    const original = window.confettiBurst;
-    window.confettiBurst = function () {
-      cheer();
-      return original.apply(this, arguments);
-    };
-  }
+  // Celebrate whenever confetti bursts (wins, streaks, party button…).
+  // Decoupled via a CustomEvent so this works regardless of script.js
+  // scope/load order (no global monkey-patching).
+  // Requires script.js confettiBurst to dispatch 'noah:confetti'.
+  window.addEventListener('noah:confetti', cheer);
 
   // A little hop when picking a game from the home grid
   document.querySelectorAll('.tile').forEach((tile) => {
     tile.addEventListener('pointerdown', cheer, { passive: true });
+  });
+
+  // Hop when heading home or toggling the global buttons too
+  ['homeBtn', 'soundToggle', 'partyBtn'].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener('pointerdown', cheer, { passive: true });
   });
 
   // Poke the hero to make him wave/jump

@@ -19,6 +19,12 @@ button {
   font-family: inherit;
 }
 
+/* Visible keyboard / switch-access focus ring (does not show on touch/mouse) */
+:focus-visible {
+  outline: 4px solid var(--sun);
+  outline-offset: 3px;
+}
+
 :root {
   /* Game colors */
   --green: #2ecc71;
@@ -52,7 +58,6 @@ body {
   background:
     radial-gradient(circle at 50% 120%, #ffe28a 0%, transparent 42%),
     linear-gradient(180deg, var(--sky) 0%, var(--sky-2) 100%);
-  background-attachment: fixed;
   color: var(--ink);
   overflow-x: hidden;
   min-height: 100vh;
@@ -602,11 +607,6 @@ h2 {
   paint-order: stroke fill;
 }
 
-/* Shared stage frame helper */
-.stage-frame {
-  border: var(--bw-fat) solid var(--ink);
-  box-shadow: var(--shadow);
-}
 
 /* ===================== SOCCER ===================== */
 .soccer-field {
@@ -690,7 +690,11 @@ h2 {
   transition: transform .1s, box-shadow .1s;
 }
 .shoot-btn:active { transform: translateY(6px); box-shadow: 0 0 0 var(--ink); }
-.shoot-btn:disabled { opacity: .5; }
+.shoot-btn.open {
+  box-shadow: 0 6px 0 var(--ink), 0 0 0 4px #2ecc71, 0 0 16px #2ecc71;
+  animation: shootOpenPulse 1s ease-in-out infinite;
+}
+@keyframes shootOpenPulse { 50% { box-shadow: 0 6px 0 var(--ink), 0 0 0 6px #2ecc71, 0 0 22px #2ecc71; } }
 
 /* ===================== CAR RACE ===================== */
 .race {
@@ -880,6 +884,10 @@ h2 {
   position: absolute;
   top: 80px; left: 40px;
   font-size: 3rem;
+  min-width: 64px; min-height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 8px;
+  line-height: 1;
   background: none;
   border: none;
   cursor: pointer;
@@ -955,6 +963,16 @@ h2 {
 .coin.got { animation: coinGot .25s ease forwards; }
 @keyframes coinSpin { 50% { transform: scaleX(.25); } }
 @keyframes coinGot { to { transform: scale(2.2); opacity: 0; } }
+.bike-hearts {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-size: 1.4rem;
+  line-height: 1;
+  letter-spacing: 2px;
+  pointer-events: none;
+  z-index: 3;
+}
 
 /* ===================== FAMILY ===================== */
 .family-grid {
@@ -1257,11 +1275,12 @@ h2 {
 /* --- Batman: moon cooldown after a bat-signal blast --- */
 .moon.cooldown { opacity: .4; filter: grayscale(.6); transform: scale(.9); }
 
-/* --- Blaster: bomb pickup pulses to stand out --- */
+/* --- Blaster: bomb pickup pulses to stand out (splat takes over on hit) --- */
 .blast-target.bomb {
   filter: drop-shadow(0 0 12px var(--red));
   animation: bombPulse .6s ease-in-out infinite;
 }
+.blast-target.bomb.splat { animation: splat .32s ease forwards; }
 @keyframes bombPulse {
   0%,100% { transform: scale(1); }
   50% { transform: scale(1.18) rotate(-6deg); }
@@ -1305,7 +1324,16 @@ h2 {
   .blast-target,
   .blast-target.bomb,
   .star-pow,
-  .bike.shield {
+  .bike.shield,
+  .shake,
+  .float-pop,
+  .soccer-flash.show,
+  .keeper.save, .keeper.dive-l, .keeper.dive-r,
+  .punch-bag.hit,
+  .bat.caught,
+  .blaster.recoil,
+  .dust,
+  .racer.nitro {
     animation: none !important;
   }
   .screen.game.active,

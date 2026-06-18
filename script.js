@@ -13,7 +13,9 @@ const Store = {
     } catch (_) { return fallback; }
   },
   getNum(key, fallback = 0) {
-    const n = parseInt(this.get(key, fallback), 10);
+    const raw = this.get(key, null);
+    if (raw === null) return fallback;
+    const n = parseInt(raw, 10);
     return Number.isFinite(n) ? n : fallback;
   },
   set(key, val) {
@@ -31,8 +33,22 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const Sound = (() => {
   let ctx = null;
   let on = true;
+  let master = null;
   const ensure = () => {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Shared master bus: gentle gain + soft limiter so overlapping/spam
+      // taps stay loud-but-clean instead of clipping on tablet speakers.
+      master = ctx.createGain();
+      master.gain.value = 0.7;
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 12;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.12;
+      master.connect(limiter).connect(ctx.destination);
+    }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
   };
@@ -43,15 +59,19 @@ const Sound = (() => {
     const gain = c.createGain();
     osc.type = type;
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(vol, c.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
-    osc.connect(gain).connect(c.destination);
+    const t = c.currentTime;
+    // Tiny attack ramp removes the start "click"; exponential decay to silence.
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(master);
     osc.start();
-    osc.stop(c.currentTime + dur);
+    osc.stop(t + dur);
   };
   return {
     setOn(v) { on = v; },
     isOn() { return on; },
+    unlock() { try { ensure(); } catch (_) {} },
     blip: () => tone(660, 0.1, 'square', 0.15),
     goal: () => { tone(523, 0.12); setTimeout(() => tone(659, 0.12), 110); setTimeout(() => tone(784, 0.22), 220); },
     miss: () => tone(160, 0.3, 'sawtooth', 0.15),
@@ -103,8 +123,9 @@ function popFromEvent(e, text, color) {
 /* ---------- Screen shake — a quick "impact" wobble on a stage ---------- */
 function shakeEl(el) {
   if (!el) return;
+  clearTimeout(el._shakeT);
   el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
-  setTimeout(() => el.classList.remove('shake'), 420);
+  el._shakeT = setTimeout(() => el.classList.remove('shake'), 420);
 }
 
 /* ============================================================
@@ -113,17 +134,24 @@ function shakeEl(el) {
 const canvas = $('confettiCanvas');
 const cctx = canvas.getContext('2d');
 let confetti = [];
-function sizeCanvas() { canvas.width = innerWidth; canvas.height = innerHeight; }
+function sizeCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
 sizeCanvas();
 window.addEventListener('resize', sizeCanvas);
 
-function confettiBurst(count = 90) {
+function confettiBurst(count = 90, ox = innerWidth / 2, oy = innerHeight / 2) {
   Haptics.win();
   const colors = ['#ffd23f', '#ff5e5b', '#4d8bff', '#2ecc71', '#9b5de5', '#ff6fb5', '#ff9f1c'];
   for (let i = 0; i < count; i++) {
     confetti.push({
-      x: innerWidth / 2 + (Math.random() - 0.5) * 200,
-      y: innerHeight / 2,
+      x: ox + (Math.random() - 0.5) * 200,
+      y: oy,
       vx: (Math.random() - 0.5) * 12,
       vy: Math.random() * -14 - 4,
       size: 6 + Math.random() * 8,
@@ -134,11 +162,12 @@ function confettiBurst(count = 90) {
     });
   }
   if (!rafRunning) loop();
+  window.dispatchEvent(new Event('noah:confetti'));
 }
 let rafRunning = false;
 function loop() {
   rafRunning = true;
-  cctx.clearRect(0, 0, canvas.width, canvas.height);
+  cctx.clearRect(0, 0, innerWidth, innerHeight);
   confetti.forEach(p => {
     p.vy += 0.4; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
     cctx.save();
@@ -148,9 +177,9 @@ function loop() {
     cctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
     cctx.restore();
   });
-  confetti = confetti.filter(p => p.life > 0 && p.y < canvas.height + 50);
+  confetti = confetti.filter(p => p.life > 0 && p.y < innerHeight + 50);
   if (confetti.length) requestAnimationFrame(loop);
-  else { cctx.clearRect(0, 0, canvas.width, canvas.height); rafRunning = false; }
+  else { cctx.clearRect(0, 0, innerWidth, innerHeight); rafRunning = false; }
 }
 
 /* ============================================================
@@ -172,7 +201,11 @@ function setChrome(isGame) {
 }
 
 function show(id) {
-  if (id !== 'home' && !$(id)) id = 'home';
+  if (id !== 'home' && !$(id)) {
+    id = 'home';
+    // Drop the bogus hash so the URL matches the screen (avoids a stuck '#typo').
+    if (location.hash) { try { history.replaceState(null, '', location.pathname + location.search); } catch (_) { location.hash = ''; } }
+  }
   if (id === current) return;
 
   const prev = Games[current];
@@ -222,7 +255,7 @@ document.querySelectorAll('.tile').forEach((tile, i) => {
 const TILE_BEST = {
   soccer: ['soccerBest', '🏆'], cars: ['raceWins', '🏆'], batman: ['batBest', '🏆'],
   kickboxing: ['punchBest', '🏆'], police: ['copBest', '🏆'], blaster: ['blastBest', '🏆'],
-  minecraft: ['stackBest', '🏆'], bikes: ['bikeBest', '🏆'], friends: ['friendsRound', '🔁'],
+  minecraft: ['stackBest', '🏆'], bikes: ['bikeBest', '🏆'], friends: ['friendsDone', '🔁'],
 };
 function refreshTileBadges() {
   document.querySelectorAll('.tile').forEach(tile => {
@@ -257,10 +290,14 @@ refreshTileBadges();
 /* ---------- Sound toggle (remembers your choice) ---------- */
 const soundToggle = $('soundToggle');
 Sound.setOn(Store.get('sound', '1') === '1');
-soundToggle.textContent = Sound.isOn() ? '🔊' : '🔇';
+function syncSoundToggle() {
+  soundToggle.textContent = Sound.isOn() ? '🔊' : '🔇';
+  soundToggle.setAttribute('aria-pressed', Sound.isOn() ? 'true' : 'false');
+}
+syncSoundToggle();
 soundToggle.addEventListener('click', () => {
   Sound.setOn(!Sound.isOn());
-  soundToggle.textContent = Sound.isOn() ? '🔊' : '🔇';
+  syncSoundToggle();
   Store.set('sound', Sound.isOn() ? '1' : '0');
   if (Sound.isOn()) Sound.blip();
 });
@@ -280,12 +317,16 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const zonePct = ['16.66%', '50%', '83.33%'];
   const cheers = ['GOAL! ⚽', 'TOP BINS! 🎯', 'GOLAZO! 🌟', 'SUPER GOAL! 💥', 'WHAT A SHOT! 🚀', 'BANGER! 🔥'];
   let score = 0, streak = 0, best = Store.getNum('soccerBest');
-  let keeperZone = 1, busy = false, timer = null;
+  let keeperZone = 1, busy = false, timer = null, flyTimer = null, landTimer = null;
 
   bestEl.textContent = best;
+  const shootBtns = document.querySelectorAll('.shoot-btn');
   placeKeeper(1);
 
-  function placeKeeper(z) { keeperZone = z; keeper.style.left = zonePct[z]; }
+  function placeKeeper(z) {
+    keeperZone = z; keeper.style.left = zonePct[z];
+    shootBtns.forEach(b => b.classList.toggle('open', parseInt(b.dataset.shoot, 10) !== z));
+  }
   function keeperInterval() { return Math.max(900, 1400 - score * 10); }
   function keeperTick() {
     let z; do { z = randInt(0, 2); } while (z === keeperZone);
@@ -303,7 +344,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     ball.classList.add('fly');
     const scored = zone !== aimedAt;
 
-    setTimeout(() => {
+    flyTimer = setTimeout(() => {
       if (scored) {
         score++; streak++;
         scoreEl.textContent = score;
@@ -329,7 +370,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       }
     }, 430);
 
-    setTimeout(() => {
+    landTimer = setTimeout(() => {
       ball.classList.remove('fly');
       ball.style.left = '50%';
       ball.style.bottom = '12px';
@@ -337,12 +378,24 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     }, 950);
   }
 
-  document.querySelectorAll('.shoot-btn').forEach(b =>
+  shootBtns.forEach(b =>
     b.addEventListener('click', () => shoot(parseInt(b.dataset.shoot, 10))));
 
   registerGame('soccer', {
-    enter() { keeperTick(); },
-    leave() { clearTimeout(timer); },
+    enter() {
+      score = 0; streak = 0; busy = false;
+      scoreEl.textContent = 0; streakEl.textContent = 0;
+      ball.classList.remove('fire', 'fly');
+      ball.style.left = '50%'; ball.style.bottom = '12px';
+      placeKeeper(1);
+      keeperTick();
+    },
+    leave() {
+      clearTimeout(timer);
+      clearTimeout(flyTimer);
+      clearTimeout(landTimer);
+      busy = false;
+    },
   });
 })();
 
@@ -434,8 +487,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       player.classList.remove('nitro');
       Sound.win(); confettiBurst(140); shakeEl(raceEl);
     } else {
-      msg.textContent = 'Rival won — tap faster next time! 🔁';
-      Sound.sad();
+      msg.textContent = 'So close! Tap again! 🎉🏎️';
+      Sound.pop(); confettiBurst(60);
     }
     btn.textContent = 'RACE AGAIN! 🚦';
     state = 'idle';
@@ -469,8 +522,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const sky = $('batSky'), moon = $('moon'), batLogo = $('batLogo'), hero = $('batHero');
   const scoreEl = $('batScore'), bestEl = $('batBest');
   let score = 0, best = Store.getNum('batBest');
-  let spawnTimer = null, active = false, sweepReady = true;
+  let spawnTimer = null, active = false, sweepReady = true, cooldownTimer = null;
   const bats = new Set();
+  const lifeTimers = new Set();
 
   bestEl.textContent = best;
 
@@ -489,9 +543,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     b.style.top = rand(46, Math.max(46, sky.clientHeight - 56)) + 'px';
     bats.add(b);
     sky.appendChild(b);
-    const life = setTimeout(() => { b.remove(); bats.delete(b); }, villain ? 2200 : 2800);
+    const life = setTimeout(() => { b.remove(); bats.delete(b); lifeTimers.delete(life); }, villain ? 2200 : 2800);
+    lifeTimers.add(life);
     b.addEventListener('click', (e) => {
-      clearTimeout(life);
+      clearTimeout(life); lifeTimers.delete(life);
       const pts = villain ? 3 : 1;
       score += pts;
       scoreEl.textContent = score;
@@ -506,7 +561,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     const gap = Math.max(700, 1200 - score * 8);
     spawnTimer = setTimeout(spawnBat, gap);
   }
-  function clearBats() { bats.forEach(b => b.remove()); bats.clear(); }
+  function clearBats() { lifeTimers.forEach(clearTimeout); lifeTimers.clear(); bats.forEach(b => b.remove()); bats.clear(); }
 
   // BAT-SIGNAL BLAST — tap the moon to catch every bat at once (short cooldown)
   function sweep() {
@@ -528,7 +583,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       Sound.win(); confettiBurst(80); shakeEl(sky);
       if (score > best) { best = score; bestEl.textContent = best; Store.set('batBest', best); }
     } else { confettiBurst(30); }
-    setTimeout(() => { sweepReady = true; moon.classList.remove('cooldown'); }, 2600);
+    cooldownTimer = setTimeout(() => { sweepReady = true; moon.classList.remove('cooldown'); }, 2600);
   }
   moon.addEventListener('click', sweep);
 
@@ -542,6 +597,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     leave() {
       active = false;
       clearTimeout(spawnTimer);
+      clearTimeout(cooldownTimer);
       clearBats();
       batLogo.classList.remove('show');
       hero.classList.remove('show');
@@ -590,7 +646,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       confettiBurst(140); Sound.win();
     } else {
       msg.textContent = `Time! You punched ${score} times! 💪`;
-      Sound.sad();
+      confettiBurst(60); Sound.perfect();
     }
     praise.textContent = '';
   }
@@ -598,7 +654,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   bag.addEventListener('click', (e) => {
     bag.classList.remove('hit'); void bag.offsetWidth; bag.classList.add('hit');
     Sound.punch();
-    if (!running) { praise.textContent = 'Tap START to begin! ⏱️'; return; }
+    if (!running) { startChallenge(); }
     score++;
     scoreEl.textContent = score;
     fill.style.width = clamp(score * 2.2, 0, 100) + '%';
@@ -614,10 +670,11 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     if (score % 10 === 0) {
       praise.textContent = 'MEGA PUNCH! 💥🔥';
       Sound.boom(); confettiBurst(50); shakeEl(stage);
+      popFromEvent(e, '💥', '#ffd23f');
     } else {
       praise.textContent = cheers[randInt(0, cheers.length - 1)];
+      popFromEvent(e, '+1', '#fff');
     }
-    popFromEvent(e, '+1', '#fff');
   });
   startBtn.addEventListener('click', () => { if (!running) startChallenge(); });
 
@@ -640,7 +697,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const zone = $('chaseZone'), robber = $('robber'), siren = $('siren');
   const startBtn = $('copStart'), scoreEl = $('copScore'), bestEl = $('copBest');
   const timerEl = $('copTimer'), msg = $('copMsg');
-  let score = 0, best = Store.getNum('copBest'), time = 15, running = false;
+  const ROUND = 15;
+  let score = 0, best = Store.getNum('copBest'), time = ROUND, running = false;
   let clock = null, fleeTimer = null, combo = 0, lastCatch = 0;
 
   bestEl.textContent = best;
@@ -662,7 +720,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     if (running) return;
     running = true;
     score = 0; scoreEl.textContent = 0; combo = 0; lastCatch = 0;
-    time = 15; timerEl.textContent = time;
+    time = ROUND; timerEl.textContent = time;
     robber.hidden = false;
     moveRobber();
     scheduleFlee();
@@ -678,7 +736,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     running = false;
     stopTimers();
     robber.hidden = true;
-    timerEl.textContent = 15;
+    timerEl.textContent = ROUND;
     startBtn.textContent = 'PLAY AGAIN 🚨';
     if (score > best) {
       best = score; bestEl.textContent = best; Store.set('copBest', best);
@@ -686,7 +744,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       confettiBurst(140); Sound.win();
     } else {
       msg.textContent = `Time! You caught ${score} robbers! 👮`;
-      Sound.sad();
+      confettiBurst(60); Sound.siren();
     }
   }
 
@@ -698,7 +756,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     const onCombo = combo >= 3;
     score += onCombo ? 2 : 1;          // a hot streak catches are worth double
     scoreEl.textContent = score;
-    Sound.siren();
+    if (onCombo) Sound.perfect(); else Sound.siren();
     siren.classList.add('active');
     setTimeout(() => siren.classList.remove('active'), 600);
     popFromEvent(e, onCombo ? `COMBO x${combo}! 🔥` : 'CAUGHT! 🚔', onCombo ? '#ffd23f' : '#fff');
@@ -712,7 +770,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   registerGame('police', {
     enter() {
       running = false; score = 0; scoreEl.textContent = 0;
-      time = 15; timerEl.textContent = 15;
+      time = ROUND; timerEl.textContent = ROUND;
       robber.hidden = true;
       startBtn.textContent = 'START 🚨';
       msg.textContent = 'Tap START, then catch as many robbers as you can! 🚨';
@@ -726,7 +784,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
    (endless & friendly: you can't lose, just blast for a high score)
    ============================================================ */
 (() => {
-  const zone = $('blastZone'), blaster = $('blaster'), msg = $('blastMsg');
+  const zone = $('blastZone'), blaster = $('blasterGun'), msg = $('blastMsg');
   const scoreEl = $('blastScore'), streakEl = $('blastStreak'), bestEl = $('blastBest');
   // Goofy invaders — nothing scary, just silly stuff to splat
   const critters = ['👽', '👾', '🤖', '👻', '🤡', '💩', '🦠', '🍌', '🐙', '🥦', '🧟', '🦷'];
@@ -775,6 +833,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     zone.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
     const life = setTimeout(() => escape(t), mega || bomb ? 2400 : 2900);
+    t._life = life;   // stash so clearTargets()/leave() can cancel it
     t.addEventListener('click', (e) => {
       e.stopPropagation(); clearTimeout(life);
       if (bomb) bombBlast(t, e); else blast(t, e, mega);
@@ -797,10 +856,12 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       setTimeout(() => t.remove(), 320);
     });
     targets.clear();
+    const prev = score;
     score += gained; streak += gained;
     scoreEl.textContent = score; streakEl.textContent = streak;
     Sound.boom(); confettiBurst(100); shakeEl(zone);
     popFromEvent(e, `💣 BOOM! +${gained}`, '#ff9f1c');
+    if (Math.floor(score / 10) > Math.floor(prev / 10)) Sound.win();
     if (score > best) { best = score; bestEl.textContent = best; Store.set('blastBest', best); }
   }
 
@@ -827,13 +888,14 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   function escape(t) {
     if (!targets.has(t)) return;
     targets.delete(t);
-    streak = 0; streakEl.textContent = 0;
+    streak = Math.max(0, streak - 2);   // soft nudge, not a full wipe
+    streakEl.textContent = streak;
     t.classList.add('flee');
     Sound.whoosh();
     setTimeout(() => t.remove(), 320);
   }
 
-  function clearTargets() { targets.forEach(t => t.remove()); targets.clear(); }
+  function clearTargets() { targets.forEach(t => { clearTimeout(t._life); t.remove(); }); targets.clear(); }
 
   // Tapping empty space still fires a fun "pew" — no penalty, all juice
   zone.addEventListener('click', (e) => {
@@ -916,6 +978,19 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     moving.style.display = 'block';
     updateCamera();
   }
+  function syncArea() {
+    const w = area.clientWidth, h = area.clientHeight;
+    if (w) areaW = w;
+    if (h) areaH = h;
+    // Keep any in-flight block fully on the (possibly narrower) stage.
+    if (mb) {
+      if (mb.width > areaW) mb.width = areaW;
+      if (mb.x + mb.width > areaW) mb.x = Math.max(0, areaW - mb.width);
+      moving.style.width = mb.width + 'px';
+      moving.style.left = mb.x + 'px';
+    }
+    updateCamera();
+  }
   function frame() {
     if (over || !mb) return;
     mb.x += mb.dir * speed;
@@ -965,17 +1040,23 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     const right = Math.min(top.left + top.width, mb.x + mb.width);
     const overlap = right - left;
 
-    if (overlap <= 0) {                 // missed completely — tower falls
+    if (overlap <= 0) {                 // missed completely — soft retry, tower stays
       fallaway(mb.x, mb.width, mb.color);
-      moving.style.display = 'none';
-      gameOver();
+      perfectStreak = 0;
+      Sound.pop();
+      shakeEl(area);
+      msg.textContent = 'Whoops! Try again — tap DROP! 🙈';
+      spawnMoving();
       return;
     }
     // overhang slice falls away — small misses (<=12px) snap to a perfect,
     // full-width block so a young player's tower keeps its size.
     const overhang = mb.width - overlap;
+    // Forgiving grace: ~14% of the block width, min 16px, so near-misses snap
+    // to a full-width "perfect" across small and large tablets alike.
+    const snapGrace = Math.max(16, mb.width * 0.14);
     let placedLeft = left, placedWidth = overlap;
-    if (overhang > 12) {
+    if (overhang > snapGrace) {
       const hangLeft = (mb.x < left) ? mb.x : right;
       fallaway(hangLeft, overhang, mb.color);
       perfectStreak = 0;
@@ -987,36 +1068,36 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       msg.textContent = perfectStreak >= 2 ? `PERFECT! x${perfectStreak} 🌟` : 'PERFECT! 🌟';
       if (perfectStreak >= 3) shakeEl(area);
     }
+    const MIN_W = 28;
+    if (placedWidth < MIN_W) {           // never shrink below a tappable floor
+      placedLeft = Math.max(0, Math.min(placedLeft, areaW - MIN_W));
+      placedWidth = MIN_W;
+    }
     blocks.push({ left: placedLeft, width: placedWidth });
     renderPlaced(blocks[blocks.length - 1], blocks.length - 1);
-    scoreEl.textContent = blocks.length - 1;
+    const height = blocks.length - 1;
+    scoreEl.textContent = height;
+    // Endless mode: the tower never "falls", so the best score climbs live here
+    // (it used to be persisted only in the now-removed crash/game-over path).
+    if (height > best) { best = height; bestEl.textContent = best; Store.set('stackBest', best); }
     Sound.pop();
-    speed = Math.min(4.5, speed + 0.10);
-    if ((blocks.length - 1) % 10 === 0) { confettiBurst(90); Sound.win(); }
+    speed = Math.min(3.8, speed + 0.08);
+    if (height % 10 === 0) { confettiBurst(90); Sound.win(); }
     spawnMoving();
-  }
-
-  function gameOver() {
-    over = true;
-    cancelAnimationFrame(rafId);
-    Sound.crash();
-    const h = blocks.length - 1;
-    if (h > best) {
-      best = h; bestEl.textContent = best; Store.set('stackBest', best);
-      confettiBurst(120); Sound.win();
-      msg.textContent = `🏆 NEW RECORD! ${h} blocks! 🏆`;
-    } else {
-      msg.textContent = `Tower fell at ${h} blocks! Tap to try again 🔁`;
-    }
-    dropBtn.textContent = 'PLAY AGAIN 🔁';
   }
 
   dropBtn.addEventListener('click', () => { if (over) reset(); else drop(); });
   area.addEventListener('click', () => { if (over) reset(); else drop(); });
 
+  function onResize() { syncArea(); }
+
   registerGame('minecraft', {
-    enter() { reset(); },
-    leave() { over = true; cancelAnimationFrame(rafId); },
+    enter() { window.addEventListener('resize', onResize); reset(); },
+    leave() {
+      over = true;
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', onResize);
+    },
   });
 })();
 
@@ -1025,7 +1106,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
    ============================================================ */
 (() => {
   const area = $('runArea'), bike = $('bike'), jumpBtn = $('jumpBtn');
-  const scoreEl = $('bikeScore'), bestEl = $('bikeBest');
+  const scoreEl = $('bikeScore'), bestEl = $('bikeBest'), heartsEl = $('bikeHearts');
+  function updateHearts() { if (heartsEl) heartsEl.textContent = '❤️'.repeat(Math.max(0, lives)) || '💔'; }
   let best = Store.getNum('bikeBest');
   const GROUND = 26, BIKE_X = 36, BIKE_W = 40;
   let areaW = 0;
@@ -1036,6 +1118,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let stars = [];           // {el, x, y}    shield power-ups
   let spawnGap = 0, coinGap = 0, cloudGap = 0, starGap = 0;
   let jumps = 0, shieldUntil = 0;
+  let lives = 3;            // hearts: a hit costs one, run ends only at 0
 
   bestEl.textContent = best;
 
@@ -1092,6 +1175,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   }
   function frame() {
     if (!running) return;
+    areaW = area.clientWidth;   // keep spawn edge correct across rotation/resize
     // physics
     vy -= 0.55; y += vy;
     if (y <= 0) { y = 0; vy = 0; jumps = 0; }   // landed → jumps refill
@@ -1167,8 +1251,19 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         }
       }
     } else {
-      for (const r of rocks) {
-        if (r.x < BIKE_X + BIKE_W - 16 && r.x + 30 > BIKE_X + 16 && y < 16) { crash(); return; }
+      for (let i = rocks.length - 1; i >= 0; i--) {
+        const r = rocks[i];
+        if (r.x < BIKE_X + BIKE_W - 16 && r.x + 30 > BIKE_X + 16 && y < 16) {
+          lives--;
+          r.el.classList.add('smashed');
+          setTimeout(() => r.el.remove(), 250);
+          rocks.splice(i, 1);
+          if (lives <= 0) { crash(); return; }
+          shieldUntil = Date.now() + 1200;   // brief mercy invincibility
+          Sound.crash(); Haptics.hit(); shakeEl(area);
+          updateHearts();
+          break;
+        }
       }
     }
     rafId = requestAnimationFrame(frame);
@@ -1176,7 +1271,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   function start() {
     clearRocks(); clearCoins(); clearClouds(); clearStars();
     y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160;
-    cloudGap = 0; starGap = 600; jumps = 0; shieldUntil = 0; running = true;
+    cloudGap = 0; starGap = 600; jumps = 0; lives = 3;
+    shieldUntil = Date.now() + 1500; running = true;   // opening grace shield
+    updateHearts();
     bike.classList.remove('shield');
     bike.style.bottom = GROUND + 'px';
     scoreEl.textContent = 0;
@@ -1187,21 +1284,28 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   function crash() {
     running = false;
     cancelAnimationFrame(rafId);
-    Sound.crash();
+    Sound.crash(); Haptics.hit(); shakeEl(area);
+    if (heartsEl) heartsEl.textContent = '💔';
     const m = Math.floor(dist);
     if (m > best) { best = m; bestEl.textContent = best; Store.set('bikeBest', best); confettiBurst(120); Sound.win(); }
     jumpBtn.textContent = 'RUN AGAIN 🔁';
   }
 
   jumpBtn.addEventListener('click', jump);
-  area.addEventListener('click', () => { if (running) jump(); });
+  area.addEventListener('click', () => { jump(); });
+  function selectRide(b) {
+    document.querySelectorAll('#ridePick .pick-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    bike.textContent = b.dataset.ride;
+    Store.set('bikeRide', b.dataset.ride);
+  }
   document.querySelectorAll('#ridePick .pick-btn').forEach(b =>
-    b.addEventListener('click', () => {
-      document.querySelectorAll('#ridePick .pick-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      bike.textContent = b.dataset.ride;
-      Sound.pop();
-    }));
+    b.addEventListener('click', () => { selectRide(b); Sound.pop(); }));
+  (() => {
+    const saved = Store.get('bikeRide', '🚲');
+    const btn = [...document.querySelectorAll('#ridePick .pick-btn')].find(x => x.dataset.ride === saved);
+    if (btn) selectRide(btn);
+  })();
 
   registerGame('bikes', {
     enter() { areaW = area.clientWidth; start(); },
@@ -1215,6 +1319,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 (() => {
   const msg = $('loveMsg'), fill = $('loveFill');
   let love = 0;
+  let burstTimers = [];
+  const clearBurst = () => { burstTimers.forEach(clearTimeout); burstTimers = []; };
   document.querySelectorAll('.person').forEach(p => {
     p.addEventListener('click', (e) => {
       msg.textContent = p.dataset.love;
@@ -1231,20 +1337,23 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         confettiBurst(120); Sound.win();
         const hearts = ['💖', '💝', '💞', '❤️', '💕', '💗'];
         for (let i = 0; i < 14; i++) {
-          setTimeout(() => floatPop(
+          burstTimers.push(setTimeout(() => floatPop(
             rand(40, innerWidth - 40),
             rand(innerHeight * 0.4, innerHeight * 0.7),
             hearts[randInt(0, hearts.length - 1)], '#ff6fb5'
-          ), i * 65);
+          ), i * 65));
         }
         love = 0;
-        setTimeout(() => { fill.style.width = '0%'; }, 700);
+        burstTimers.push(setTimeout(() => { fill.style.width = '0%'; }, 700));
       } else if (p.classList.contains('fav')) {
         confettiBurst(40);
       }
     });
   });
-  registerGame('family', { enter() {}, leave() {} });
+  registerGame('family', {
+    enter() { clearBurst(); love = 0; fill.style.width = '0%'; msg.textContent = ''; },
+    leave() { clearBurst(); },
+  });
 })();
 
 /* ============================================================
@@ -1258,6 +1367,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let total = Store.getNum('fives');
   let round = Store.getNum('friendsRound', 1);
   let done = new Set();
+  let resetT = null;
 
   scoreEl.textContent = total;
   roundEl.textContent = round;
@@ -1266,7 +1376,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     const btn = document.createElement('button');
     btn.className = 'friend';
     btn.textContent = face;
-    btn.setAttribute('aria-label', 'High five friend');
+    btn.setAttribute('aria-label', 'High five friend ' + (idx + 1));
     btn.addEventListener('click', (e) => {
       btn.classList.remove('fived'); void btn.offsetWidth; btn.classList.add('fived');
       Sound.pop();
@@ -1277,9 +1387,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       if (done.size === faces.length) {
         note.textContent = '🎉 Round complete! High-five them all again! 🙌';
         confettiBurst(120); Sound.win();
-        round++; roundEl.textContent = round; Store.set('friendsRound', round);
+        round++; roundEl.textContent = round; Store.set('friendsRound', round); Store.set('friendsDone', round - 1);
         done.clear();
-        setTimeout(() => grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived')), 700);
+        clearTimeout(resetT);
+        resetT = setTimeout(() => grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived')), 700);
       } else {
         note.textContent = `${left} more friend${left === 1 ? '' : 's'} to high-five! ✋`;
       }
@@ -1293,7 +1404,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       note.textContent = 'High-five all 10 friends to win the round! 🙌';
       grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived'));
     },
-    leave() {},
+    leave() { clearTimeout(resetT); },
   });
 })();
 
@@ -1323,12 +1434,29 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     } else {
       const close = taps % 6 === 5;       // one tap away from catching it
       msg.textContent = close ? 'So close! One more tap! 😮' : dodges[randInt(0, dodges.length - 1)];
+      if (close) Sound.miss();             // distinct 'ooh, so close!' cue (was dead helper)
       flee();
       popFromEvent(e, close ? '😅' : '💨', '#fff');
     }
   });
-  // Desktop: book also dodges when the pointer gets close
-  book.addEventListener('mouseenter', () => { if (taps % 6 !== 5) flee(); });
+  // Dodge when a finger/pointer approaches the book (works on touch AND mouse).
+  // Gated on taps%6!==5 so the guaranteed-catch 'one more tap' state holds still,
+  // and throttled so the book doesn't jitter/teleport on every move event.
+  let lastDodge = 0;
+  function dodgeFrom(e) {
+    if (taps % 6 === 5) return;            // hold still when one tap away
+    const now = Date.now();
+    if (now - lastDodge < 280) return;     // throttle: at most ~1 dodge / 0.28s
+    const r = book.getBoundingClientRect();
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const dist = Math.hypot((p.clientX || 0) - cx, (p.clientY || 0) - cy);
+    if (dist > r.width * 0.9) return;      // only flee when the finger is close
+    lastDodge = now;
+    flee();
+  }
+  zone.addEventListener('pointermove', dodgeFrom);
+  zone.addEventListener('touchmove', dodgeFrom, { passive: true });
 
   registerGame('nostudy', {
     enter() { taps = 0; msg.textContent = ''; center(); },
@@ -1344,11 +1472,12 @@ let welcomed = false;
 function welcome() {
   if (welcomed) return;
   welcomed = true;
+  Sound.unlock();
   confettiBurst(120);
   Sound.win();
 }
 document.body.addEventListener('click', welcome, { once: true });
-document.body.addEventListener('touchstart', welcome, { once: true });
+document.body.addEventListener('touchstart', welcome, { once: true, passive: true });
 
 /* Open whatever the URL points at (supports deep links / refresh) */
 show(fromHash());
