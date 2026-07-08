@@ -153,28 +153,33 @@ h2 {
 .sound-toggle { right: 16px; background: var(--sun); }
 .home-btn { left: 16px; background: var(--red); }
 
-/* Side navigation arrows */
+/* Side navigation arrows — bottom corners (out of resting-thumb zone) */
 .nav-arrow {
   position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  top: auto;
+  transform: none;
   z-index: 55;
-  width: 50px;
-  height: 78px;
+  width: 58px;
+  height: 58px;
   border: var(--bw) solid var(--ink);
-  border-radius: 16px;
+  border-radius: 50%;
   background: #fff;
   color: var(--ink);
   font-family: 'Luckiest Guy', cursive;
-  font-size: 2.6rem;
+  font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
   box-shadow: var(--shadow);
   transition: box-shadow .1s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
-.nav-arrow:active { transform: translateY(calc(-50% + 6px)); box-shadow: 0 0 0 var(--ink); }
-.nav-prev { left: 8px; }
-.nav-next { right: 8px; }
+.nav-arrow:active { transform: translateY(6px); box-shadow: 0 0 0 var(--ink); }
+.nav-prev { left: 12px; }
+.nav-next { right: 12px; }
 
 /* ===================== MASCOT — SUPER NOAH (pure CSS) ===================== */
 .mascot {
@@ -447,7 +452,7 @@ h2 {
 .tile:nth-child(odd)  { transform: rotate(-1.5deg); }
 .tile:nth-child(even) { transform: rotate(1.5deg); }
 .tile:hover { transform: translateY(-4px) rotate(0deg); }
-.tile:active { transform: translateY(8px) rotate(0deg); box-shadow: 0 0 0 var(--ink); }
+.tile:active { transform: translateY(6px) scaleY(.92) scaleX(1.04) rotate(0deg); box-shadow: 0 0 0 var(--ink); }
 
 .t-best {
   position: absolute;
@@ -517,6 +522,14 @@ h2 {
   border-radius: 18px;
   padding: 10px 16px;
 }
+/* Ink text on bright gold/yellow stages so instructions stay readable */
+.card-gold .card-text,
+.card-yellow .card-text,
+.card-trophy .card-text {
+  color: var(--ink);
+  background: rgba(255,255,255,.55);
+  border-color: var(--ink);
+}
 
 /* Each game gets a flat bold backdrop + an ink frame via ::before on stages */
 .card-green  { background: var(--green); }
@@ -527,6 +540,7 @@ h2 {
 .card-cube   { background: var(--cube); }
 .card-orange { background: var(--orange); }
 .card-pink   { background: var(--pink); }
+.card-trophy { background: linear-gradient(160deg, #ffd23f 0%, #ff9f1c 55%, #ff6fb5 100%); color: var(--ink); }
 .card-purple { background: var(--purple); }
 .card-yellow { background: var(--yellow); color: var(--ink); }
 .card-space  { background: #3a1c71; }
@@ -839,13 +853,11 @@ h2 {
   transition: transform .08s;
   filter: drop-shadow(0 6px 0 rgba(0,0,0,.25));
 }
-.punch-bag.hit { animation: swing .3s ease; }
-@keyframes swing {
-  0% { transform: rotate(0); }
-  25% { transform: rotate(18deg) scale(1.12); }
-  50% { transform: rotate(-14deg); }
-  75% { transform: rotate(8deg); }
-  100% { transform: rotate(0); }
+.punch-bag.hit { animation: punchHit .28s ease; }
+@keyframes punchHit {
+  0% { transform: scale(1) rotate(0); }
+  35% { transform: scaleX(1.12) scaleY(.86) rotate(-8deg); }
+  100% { transform: scale(1) rotate(0); }
 }
 .power-bar {
   height: 22px;
@@ -883,16 +895,17 @@ h2 {
 .robber {
   position: absolute;
   top: 80px; left: 40px;
-  font-size: 3rem;
-  min-width: 64px; min-height: 64px;
+  font-size: 3.8rem;
+  min-width: 72px; min-height: 72px;
   display: flex; align-items: center; justify-content: center;
-  padding: 8px;
+  padding: 10px;
   line-height: 1;
   background: none;
   border: none;
   cursor: pointer;
-  transition: top .25s, left .25s;
+  transition: top .25s, left .25s, font-size .2s;
 }
+.robber.big { font-size: 4.6rem; min-width: 88px; min-height: 88px; }
 .robber.pop { animation: batPop .2s ease; }
 
 /* ===================== MINECRAFT (stacker) ===================== */
@@ -1054,14 +1067,29 @@ h2 {
 }
 .friend {
   position: relative;
-  font-size: 2.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 2.2rem;
   background: #fff;
   border: var(--bw) solid var(--ink);
   border-radius: 18px;
-  padding: 10px 0;
+  padding: 10px 6px 8px;
+  min-height: 72px;
   cursor: pointer;
   box-shadow: 0 5px 0 var(--ink);
   transition: transform .12s, background .2s, box-shadow .12s;
+}
+.friend-face { line-height: 1; }
+.friend-name {
+  font-family: 'Baloo 2', system-ui, sans-serif;
+  font-size: .72rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  letter-spacing: .2px;
 }
 .friend:active { transform: translateY(5px) rotate(-6deg); box-shadow: 0 0 0 var(--ink); }
 .friend.fived {
@@ -1082,6 +1110,86 @@ h2 {
   font-weight: 900;
 }
 @keyframes fiveJump { 50% { transform: translateY(-16px) scale(1.2); } }
+
+/* ===================== TROPHY ROOM ===================== */
+.trophy-wall {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.trophy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 110px;
+  padding: 14px 8px;
+  background: #fff;
+  border: var(--bw) solid var(--ink);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform .12s, box-shadow .12s, filter .2s;
+  font-family: inherit;
+  color: var(--ink);
+}
+.trophy:active { transform: translateY(6px); box-shadow: 0 0 0 var(--ink); }
+.trophy-emoji { font-size: 2.6rem; line-height: 1; }
+.trophy-label {
+  font-family: 'Luckiest Guy', cursive;
+  font-size: .85rem;
+  letter-spacing: .5px;
+  text-align: center;
+  line-height: 1.15;
+}
+.trophy.earned {
+  background: linear-gradient(180deg, #fff9df, #ffe28a);
+}
+.trophy.locked {
+  filter: grayscale(1);
+  opacity: .45;
+}
+.trophy.locked .trophy-emoji { opacity: .55; }
+
+/* Comic KA-POW burst at impact points */
+.comic-burst {
+  position: fixed;
+  z-index: 85;
+  width: 0; height: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: comicBurst .7s ease-out forwards;
+}
+.comic-burst-star {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 120px; height: 120px;
+  margin: -60px 0 0 -60px;
+  background: var(--burst-color, var(--sun));
+  clip-path: polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+  border: 0;
+  filter: drop-shadow(0 3px 0 var(--ink));
+}
+.comic-burst-word {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  font-family: 'Luckiest Guy', cursive;
+  font-size: 1.35rem;
+  color: #fff;
+  -webkit-text-stroke: 2.5px var(--ink);
+  paint-order: stroke fill;
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+@keyframes comicBurst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-12deg); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(4deg); }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1.25) rotate(-4deg); }
+}
 
 /* ===================== NO STUDY ===================== */
 .study-zone {
@@ -1223,8 +1331,18 @@ h2 {
 
 /* ===================== RESPONSIVE ===================== */
 @media (max-width: 420px) {
-  .friends-grid { gap: 8px; }
-  .friend { font-size: 1.9rem; }
+  .friends-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .friend {
+    font-size: 1.7rem;
+    min-height: 60px;
+    padding: 12px 4px 8px;
+  }
+  .friend-name { font-size: .65rem; }
+  .trophy-wall { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .trophy { min-height: 96px; }
   .tile { padding: 18px 8px 14px; border-radius: 22px; }
   .t-emoji { font-size: 2.4rem; width: 62px; height: 62px; }
   .mascot { width: 150px; height: 172px; transform: scale(.92); }
@@ -1312,6 +1430,11 @@ h2 {
 .rock.smashed { animation: rockSmash .25s ease forwards; pointer-events: none; }
 @keyframes rockSmash { to { transform: scale(1.8) rotate(40deg); opacity: 0; } }
 
+/* ===================== TILE ACCENTS ===================== */
+.tile.t-trophy {
+  background: linear-gradient(160deg, #ffd23f, #ff9f1c);
+}
+
 /* ===================== REDUCED MOTION ===================== */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -1330,10 +1453,14 @@ h2 {
   .soccer-flash.show,
   .keeper.save, .keeper.dive-l, .keeper.dive-r,
   .punch-bag.hit,
-  .bat.caught,
+  .bat, .bat.caught,
   .blaster.recoil,
   .dust,
-  .racer.nitro {
+  .racer.nitro,
+  .comic-burst,
+  .flee,
+  .blast-target.splat,
+  .shoot-btn.open {
     animation: none !important;
   }
   .screen.game.active,

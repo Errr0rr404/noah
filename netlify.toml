@@ -25,3 +25,15 @@
   for = "/*.css"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+
+# Service worker must revalidate so clients pick up new precache lists.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Manifest is tiny; short cache is fine.
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

@@ -8,8 +8,9 @@ static HTML/CSS/JS.
 
 - Plain HTML, CSS, and vanilla JavaScript (no framework, no bundler)
 - Web Audio API for sound effects (no audio files needed)
-- `localStorage` for best scores and the sound on/off setting
-- Google Fonts (Baloo 2, Luckiest Guy)
+- `localStorage` for best scores, trophies, and the sound on/off setting
+- Google Fonts (Baloo 2, Luckiest Guy) with system-ui fallbacks
+- Optional PWA layer (`manifest.json` + `sw.js`) for install / offline on https
 
 ## Files
 
@@ -17,14 +18,15 @@ static HTML/CSS/JS.
 - `styles.css` — all styling, the CSS-built mascot, animations
 - `script.js` — app navigation, sound engine, and game logic
 - `mascot.js` — mascot celebration reactions (hooks into confetti / tile taps)
+- `manifest.json` / `sw.js` — add-to-home-screen + offline cache (http/https only)
 - `netlify.toml` — Netlify config (publishes the repo root, no build command)
 - `PLAN.md` — multi-agent improvement plan / working notes
 
 ## Games
 
 Soccer Star, Tap Race, Bat Catch, Power Punch, Police Chase, Silly Blaster,
-Block Stack, Bike Run, Noah's Family, My 10 Friends, and Catch the Book —
-11 mini-games in total.
+Block Stack, Bike Run, Noah's Family, My 10 Friends, Catch the Book, and
+My Trophies — 12 screens in total.
 
 ## Run locally
 

@@ -68,25 +68,37 @@ const Sound = (() => {
     osc.start();
     osc.stop(t + dur);
   };
+  const arpeggio = (notes, step = 120, dur = 0.18, type = 'sine', vol = 0.2) => {
+    notes.forEach((f, i) => setTimeout(() => tone(f, dur, type, vol), i * step));
+  };
   return {
     setOn(v) { on = v; },
     isOn() { return on; },
     unlock() { try { ensure(); } catch (_) {} },
     blip: () => tone(660, 0.1, 'square', 0.15),
     goal: () => { tone(523, 0.12); setTimeout(() => tone(659, 0.12), 110); setTimeout(() => tone(784, 0.22), 220); },
-    miss: () => tone(160, 0.3, 'sawtooth', 0.15),
+    // Soft rising "boing" for near-misses (never a harsh fail buzzer)
+    miss: () => { tone(280, 0.1, 'sine', 0.14); setTimeout(() => tone(420, 0.16, 'triangle', 0.14), 90); },
     punch: () => tone(120, 0.12, 'square', 0.25),
-    win: () => { [523, 587, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.18), i * 120)); },
+    win: () => arpeggio([523, 587, 659, 784, 1047]),
+    winGoal: () => arpeggio([523, 659, 784, 1047], 100, 0.16),
+    winPower: () => arpeggio([200, 300, 450, 600, 900], 90, 0.12, 'square', 0.18),
+    winHero: () => arpeggio([392, 523, 659, 784, 1047, 784], 110, 0.14),
     siren: () => { tone(700, 0.2, 'sine', 0.2); setTimeout(() => tone(500, 0.2, 'sine', 0.2), 200); },
     pop: () => tone(880, 0.08, 'triangle', 0.2),
     whoosh: () => tone(300, 0.25, 'sine', 0.15),
     sad: () => { tone(400, 0.18); setTimeout(() => tone(300, 0.28), 160); },
     jump: () => { tone(420, 0.1, 'square', 0.18); setTimeout(() => tone(680, 0.1, 'square', 0.16), 90); },
-    crash: () => { tone(140, 0.35, 'sawtooth', 0.25); setTimeout(() => tone(90, 0.3, 'square', 0.2), 80); },
+    crash: () => { tone(140, 0.35, 'sawtooth', 0.18); setTimeout(() => tone(90, 0.3, 'square', 0.16), 80); },
     tick: () => tone(800, 0.05, 'square', 0.12),
+    tickUrgent: (left = 3) => tone(850 + (3 - clamp(left, 1, 3)) * 150, 0.07, 'square', 0.14),
     perfect: () => { tone(880, 0.1); setTimeout(() => tone(1320, 0.16), 100); },
     laser: () => { tone(1150, 0.05, 'square', 0.16); setTimeout(() => tone(430, 0.12, 'sawtooth', 0.16), 45); },
     boom: () => { tone(180, 0.18, 'square', 0.22); setTimeout(() => tone(90, 0.24, 'sawtooth', 0.2), 60); },
+    // Escalating combo pitch — higher as the streak climbs
+    combo: (n = 1) => tone(523 * Math.pow(1.0595, Math.min(n, 24)), 0.1, 'triangle', 0.18),
+    coin: () => { tone(988, 0.06, 'square', 0.14); setTimeout(() => tone(1319, 0.12, 'square', 0.12), 70); },
+    sparkle: () => { tone(1200, 0.08, 'sine', 0.12); setTimeout(() => tone(1600, 0.1, 'triangle', 0.1), 80); },
   };
 })();
 
@@ -120,12 +132,41 @@ function popFromEvent(e, text, color) {
   floatPop(x - 10, y - 30, text, color);
 }
 
+/* ---------- Reduced motion (shared flag for confetti/shake/bursts) ---------- */
+let REDUCE = false;
+try {
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  REDUCE = !!mq.matches;
+  const onChange = (e) => { REDUCE = !!e.matches; };
+  if (mq.addEventListener) mq.addEventListener('change', onChange);
+  else if (mq.addListener) mq.addListener(onChange);
+} catch (_) {}
+
 /* ---------- Screen shake — a quick "impact" wobble on a stage ---------- */
 function shakeEl(el) {
-  if (!el) return;
+  if (REDUCE || !el) return;
   clearTimeout(el._shakeT);
   el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
   el._shakeT = setTimeout(() => el.classList.remove('shake'), 420);
+}
+
+/* ---------- Comic "KA-POW!" burst at impact points ---------- */
+function spawnBurst(x, y, word = 'KA-POW!', color = '#ffd23f') {
+  if (REDUCE) return;
+  const el = document.createElement('div');
+  el.className = 'comic-burst';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.setProperty('--burst-color', color);
+  el.innerHTML = `<span class="comic-burst-star" aria-hidden="true"></span><span class="comic-burst-word">${word}</span>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 720);
+}
+function burstFromEvent(e, word, color) {
+  const p = (e && e.touches && e.touches[0]) ? e.touches[0] : e;
+  const x = (p && p.clientX) || window.innerWidth / 2;
+  const y = (p && p.clientY) || window.innerHeight / 2;
+  spawnBurst(x, y, word, color);
 }
 
 /* ============================================================
@@ -134,6 +175,8 @@ function shakeEl(el) {
 const canvas = $('confettiCanvas');
 const cctx = canvas.getContext('2d');
 let confetti = [];
+const CONFETTI_CAP = 280;
+const CONFETTI_EMOJIS = ['⭐', '⚡', '💥', '⚽', '🦇', '🏆'];
 function sizeCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(innerWidth * dpr);
@@ -145,10 +188,18 @@ function sizeCanvas() {
 sizeCanvas();
 window.addEventListener('resize', sizeCanvas);
 
-function confettiBurst(count = 90, ox = innerWidth / 2, oy = innerHeight / 2) {
+function confettiBurst(count = 90, ox, oy) {
+  if (ox == null) ox = innerWidth / 2;
+  if (oy == null) oy = innerHeight / 2;
+  if (REDUCE) count = Math.min(count, 12);
+  const room = CONFETTI_CAP - confetti.length;
+  if (room <= 0) return;
+  count = Math.min(count, room);
   Haptics.win();
   const colors = ['#ffd23f', '#ff5e5b', '#4d8bff', '#2ecc71', '#9b5de5', '#ff6fb5', '#ff9f1c'];
   for (let i = 0; i < count; i++) {
+    const roll = Math.random();
+    const shape = roll < 0.14 ? 'emoji' : roll < 0.45 ? 'circle' : roll < 0.75 ? 'rect' : 'streamer';
     confetti.push({
       x: ox + (Math.random() - 0.5) * 200,
       y: oy,
@@ -159,10 +210,19 @@ function confettiBurst(count = 90, ox = innerWidth / 2, oy = innerHeight / 2) {
       rot: Math.random() * 360,
       vr: (Math.random() - 0.5) * 20,
       life: 100 + Math.random() * 40,
+      shape,
+      emoji: CONFETTI_EMOJIS[Math.floor(Math.random() * CONFETTI_EMOJIS.length)],
     });
   }
   if (!rafRunning) loop();
   window.dispatchEvent(new Event('noah:confetti'));
+}
+/** Confetti from a tap/click event (falls back to screen center). */
+function confettiAt(e, count = 90) {
+  const p = (e && e.touches && e.touches[0]) ? e.touches[0] : e;
+  const x = (p && p.clientX != null) ? p.clientX : innerWidth / 2;
+  const y = (p && p.clientY != null) ? p.clientY : innerHeight / 2;
+  confettiBurst(count, x, y);
 }
 let rafRunning = false;
 function loop() {
@@ -173,8 +233,23 @@ function loop() {
     cctx.save();
     cctx.translate(p.x, p.y);
     cctx.rotate(p.rot * Math.PI / 180);
-    cctx.fillStyle = p.color;
-    cctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+    if (p.shape === 'emoji') {
+      cctx.font = `${Math.round(p.size * 2.2)}px serif`;
+      cctx.textAlign = 'center';
+      cctx.textBaseline = 'middle';
+      cctx.fillText(p.emoji, 0, 0);
+    } else if (p.shape === 'circle') {
+      cctx.fillStyle = p.color;
+      cctx.beginPath();
+      cctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
+      cctx.fill();
+    } else if (p.shape === 'streamer') {
+      cctx.fillStyle = p.color;
+      cctx.fillRect(-p.size * 0.15, -p.size, p.size * 0.3, p.size * 1.6);
+    } else {
+      cctx.fillStyle = p.color;
+      cctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+    }
     cctx.restore();
   });
   confetti = confetti.filter(p => p.life > 0 && p.y < innerHeight + 50);
@@ -185,9 +260,17 @@ function loop() {
 /* ============================================================
    SCREEN ROUTER  (one game at a time + swipe + arrows)
    ============================================================ */
-const ORDER = ['soccer', 'cars', 'batman', 'kickboxing', 'police', 'blaster', 'minecraft', 'bikes', 'family', 'friends', 'nostudy'];
+// Derive game order from the DOM so nav never drifts from the HTML tile grid.
+const ORDER = [...document.querySelectorAll('section.game')].map(s => s.id);
 const Games = {};                       // id -> { enter, leave }
 const registerGame = (id, hooks) => { Games[id] = hooks; };
+
+// Emoji labels for prev/next arrows (matches home tiles)
+const GAME_EMOJI = {
+  soccer: '⚽', cars: '🏎️', batman: '🦇', kickboxing: '🥊', police: '🚓',
+  blaster: '🔫', minecraft: '⛏️', bikes: '🏍️', family: '❤️', friends: '🙌',
+  nostudy: '📚', trophies: '🏆',
+};
 
 const homeBtn = $('homeBtn');
 const navPrev = $('navPrev');
@@ -198,6 +281,17 @@ function setChrome(isGame) {
   homeBtn.hidden = !isGame;
   navPrev.hidden = !isGame;
   navNext.hidden = !isGame;
+  if (isGame) {
+    const i = ORDER.indexOf(current);
+    if (i >= 0) {
+      const prevId = ORDER[(i - 1 + ORDER.length) % ORDER.length];
+      const nextId = ORDER[(i + 1) % ORDER.length];
+      navPrev.textContent = GAME_EMOJI[prevId] || '‹';
+      navNext.textContent = GAME_EMOJI[nextId] || '›';
+      navPrev.setAttribute('aria-label', 'Previous game');
+      navNext.setAttribute('aria-label', 'Next game');
+    }
+  }
 }
 
 function show(id) {
@@ -256,6 +350,7 @@ const TILE_BEST = {
   soccer: ['soccerBest', '🏆'], cars: ['raceWins', '🏆'], batman: ['batBest', '🏆'],
   kickboxing: ['punchBest', '🏆'], police: ['copBest', '🏆'], blaster: ['blastBest', '🏆'],
   minecraft: ['stackBest', '🏆'], bikes: ['bikeBest', '🏆'], friends: ['friendsDone', '🔁'],
+  trophies: ['trophiesEarned', '🏆'],
 };
 function refreshTileBadges() {
   document.querySelectorAll('.tile').forEach(tile => {
@@ -358,8 +453,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         ball.classList.toggle('fire', streak >= 3);
         showFlash(streak >= 3 ? `🔥 ${streak} IN A ROW! 🔥` : cheers[randInt(0, cheers.length - 1)]);
         shakeEl(field);
+        Sound.combo(streak);
         if (streak > best) { best = streak; bestEl.textContent = best; Store.set('soccerBest', best); }
-        if (streak % 3 === 0) { confettiBurst(70); Sound.win(); }
+        if (streak % 3 === 0) { confettiBurst(70); Sound.winGoal(); }
       } else {
         streak = 0; streakEl.textContent = 0;
         ball.classList.remove('fire');
@@ -452,9 +548,12 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         btn.textContent = 'TAP! TAP! 💨';
         state = 'racing';
         Sound.whoosh();
-        // rival creeps forward on its own — beatable by a fast tapper
+        // Rival creeps forward — slower + chokes near the line so Noah mostly wins
         rivalTimer = setInterval(() => {
-          rPos = clamp(rPos + rand(0.5, 1.0), 0, 100);
+          let step = rand(0.35, 0.7);
+          if (rPos > 80) step *= 0.4;                 // stall near the finish
+          if (pPos < rPos - 8) step *= 0.75;          // tiny catch-up nudge for player
+          rPos = clamp(rPos + step, 0, 100);
           place();
           if (rPos >= 100) finish(false);
         }, 90);
@@ -463,6 +562,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   }
 
   function tap() {
+    if (state === 'idle') { startRace(); return; }
     if (state !== 'racing') return;
     const now = Date.now();
     const fast = now - lastTap < 170;     // rapid taps earn a nitro boost
@@ -487,15 +587,16 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       player.classList.remove('nitro');
       Sound.win(); confettiBurst(140); shakeEl(raceEl);
     } else {
-      msg.textContent = 'So close! Tap again! 🎉🏎️';
+      msg.textContent = 'So close — go again! 🏁';
       Sound.pop(); confettiBurst(60);
     }
     btn.textContent = 'RACE AGAIN! 🚦';
     state = 'idle';
   }
 
-  // First click starts the race; clicks during the race accelerate.
+  // First click (button or track) starts; clicks during the race accelerate.
   btn.addEventListener('click', () => { if (state === 'idle') startRace(); else tap(); });
+  raceEl.addEventListener('click', () => { if (state === 'idle') startRace(); else if (state === 'racing') tap(); });
   // Each row picks one racer's car; both have a default already marked active.
   function wirePicker(rowId, racerEl) {
     document.querySelectorAll(rowId + ' .pick-btn').forEach(b =>
@@ -553,10 +654,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       b.classList.add('caught');
       bats.delete(b);
       setTimeout(() => b.remove(), 280);
-      Sound.pop();
+      Sound.combo(score);
       popFromEvent(e, villain ? '+3 🦹' : '+1 🦇', '#ffd23f');
       if (score > best) { best = score; bestEl.textContent = best; Store.set('batBest', best); }
-      if (score > 0 && score % 10 === 0) { confettiBurst(80); Sound.win(); }
+      if (score > 0 && score % 10 === 0) { confettiAt(e, 80); Sound.winHero(); }
     });
     const gap = Math.max(700, 1200 - score * 8);
     spawnTimer = setTimeout(spawnBat, gap);
@@ -580,7 +681,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     bats.clear();
     scoreEl.textContent = score;
     if (caught > 0) {
-      Sound.win(); confettiBurst(80); shakeEl(sky);
+      Sound.winHero(); confettiBurst(80); shakeEl(sky);
       if (score > best) { best = score; bestEl.textContent = best; Store.set('batBest', best); }
     } else { confettiBurst(30); }
     cooldownTimer = setTimeout(() => { sweepReady = true; moon.classList.remove('cooldown'); }, 2600);
@@ -631,7 +732,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     msg.textContent = 'GO! Punch as fast as you can! 💥';
     timer = setInterval(() => {
       setTimer(time - 1);
-      if (time <= 3 && time > 0) Sound.tick();
+      if (time <= 3 && time > 0) Sound.tickUrgent(time);
       if (time <= 0) endChallenge();
     }, 1000);
   }
@@ -643,7 +744,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     if (score > best) {
       best = score; bestEl.textContent = best; Store.set('punchBest', best);
       msg.textContent = `🏆 NEW RECORD! ${score} punches! 🏆`;
-      confettiBurst(140); Sound.win();
+      confettiBurst(140); Sound.winPower();
     } else {
       msg.textContent = `Time! You punched ${score} times! 💪`;
       confettiBurst(60); Sound.perfect();
@@ -664,16 +765,18 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     if (b > beltIdx) {
       beltIdx = b;
       msg.textContent = `NEW RANK: ${belts[b][1]}`;
-      confettiBurst(60); Sound.perfect();
+      confettiAt(e, 60); Sound.perfect();
     }
     // Every 10th hit is a screen-shaking MEGA PUNCH
     if (score % 10 === 0) {
       praise.textContent = 'MEGA PUNCH! 💥🔥';
-      Sound.boom(); confettiBurst(50); shakeEl(stage);
+      Sound.boom(); confettiAt(e, 50); shakeEl(stage);
+      burstFromEvent(e, 'KAPOW!', '#ff5e5b');
       popFromEvent(e, '💥', '#ffd23f');
     } else {
       praise.textContent = cheers[randInt(0, cheers.length - 1)];
       popFromEvent(e, '+1', '#fff');
+      if (score % 5 === 0) burstFromEvent(e, 'POW!', '#ffd23f');
     }
   });
   startBtn.addEventListener('click', () => { if (!running) startChallenge(); });
@@ -709,7 +812,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     robber.style.top = rand(12, Math.max(12, maxY)) + 'px';
     robber.classList.remove('pop'); void robber.offsetWidth; robber.classList.add('pop');
   }
-  function fleeInterval() { return Math.max(1100, 1900 - score * 20); }
+  function fleeInterval() { return Math.max(1500, 1900 - score * 15); }
   function scheduleFlee() {
     clearTimeout(fleeTimer);
     fleeTimer = setTimeout(() => { if (running) { moveRobber(); scheduleFlee(); } }, fleeInterval());
@@ -722,13 +825,15 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     score = 0; scoreEl.textContent = 0; combo = 0; lastCatch = 0;
     time = ROUND; timerEl.textContent = time;
     robber.hidden = false;
+    robber.classList.toggle('big', time <= 5);
     moveRobber();
     scheduleFlee();
     startBtn.textContent = 'CATCH! 🚔';
     msg.textContent = 'GO! Tap the robber! 🚨';
     clock = setInterval(() => {
       time--; timerEl.textContent = Math.max(0, time);
-      if (time <= 3 && time > 0) Sound.tick();
+      robber.classList.toggle('big', time <= 5);  // easier target near the end
+      if (time <= 3 && time > 0) Sound.tickUrgent(time);
       if (time <= 0) end();
     }, 1000);
   }
@@ -736,6 +841,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     running = false;
     stopTimers();
     robber.hidden = true;
+    robber.classList.remove('big');
     timerEl.textContent = ROUND;
     startBtn.textContent = 'PLAY AGAIN 🚨';
     if (score > best) {
@@ -749,21 +855,27 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   }
 
   robber.addEventListener('click', (e) => {
-    if (!running) return;
+    if (!running) { start(); return; }
     const now = Date.now();
     if (now - lastCatch < 1200) combo++; else combo = 1;
     lastCatch = now;
     const onCombo = combo >= 3;
     score += onCombo ? 2 : 1;          // a hot streak catches are worth double
     scoreEl.textContent = score;
-    if (onCombo) Sound.perfect(); else Sound.siren();
+    if (onCombo) { Sound.combo(combo); Sound.perfect(); } else Sound.siren();
     siren.classList.add('active');
     setTimeout(() => siren.classList.remove('active'), 600);
     popFromEvent(e, onCombo ? `COMBO x${combo}! 🔥` : 'CAUGHT! 🚔', onCombo ? '#ffd23f' : '#fff');
     if (onCombo) shakeEl(zone);
     moveRobber();
     scheduleFlee();
-    if (score % 5 === 0) confettiBurst(70);
+    if (score % 5 === 0) confettiAt(e, 70);
+  });
+  // First tap on the chase zone starts the round (non-reader friendly)
+  zone.addEventListener('click', (e) => {
+    if (running) return;
+    if (e.target === robber) return;   // robber handler starts + catches
+    start();
   });
   startBtn.addEventListener('click', () => { if (!running) start(); });
 
@@ -859,9 +971,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     const prev = score;
     score += gained; streak += gained;
     scoreEl.textContent = score; streakEl.textContent = streak;
-    Sound.boom(); confettiBurst(100); shakeEl(zone);
+    Sound.boom(); confettiAt(e, 100); shakeEl(zone);
+    burstFromEvent(e, 'BOOM!', '#ff9f1c');
     popFromEvent(e, `💣 BOOM! +${gained}`, '#ff9f1c');
-    if (Math.floor(score / 10) > Math.floor(prev / 10)) Sound.win();
+    if (Math.floor(score / 10) > Math.floor(prev / 10)) Sound.winPower();
     if (score > best) { best = score; bestEl.textContent = best; Store.set('blastBest', best); }
   }
 
@@ -877,11 +990,13 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     t.classList.add('splat');
     setTimeout(() => t.remove(), 320);
     Sound.laser();
+    Sound.combo(streak);
     setTimeout(() => (mega ? Sound.boom() : Sound.pop()), 60);
     popFromEvent(e, mega ? '+5 🛸💥' : blasts[randInt(0, blasts.length - 1)], mega ? '#ffd23f' : '#5ee7df');
+    if (mega) burstFromEvent(e, 'ZAP!', '#ffd23f');
     if (score > best) { best = score; bestEl.textContent = best; Store.set('blastBest', best); }
-    if (mega) confettiBurst(60);
-    if (Math.floor(score / 10) > Math.floor((score - pts) / 10)) { confettiBurst(90); Sound.win(); }
+    if (mega) confettiAt(e, 60);
+    if (Math.floor(score / 10) > Math.floor((score - pts) / 10)) { confettiAt(e, 90); Sound.winPower(); }
   }
 
   // Escaped critter — no penalty, it just zooms off blowing a raspberry
@@ -1081,7 +1196,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     // (it used to be persisted only in the now-removed crash/game-over path).
     if (height > best) { best = height; bestEl.textContent = best; Store.set('stackBest', best); }
     Sound.pop();
-    speed = Math.min(3.8, speed + 0.08);
+    speed = Math.min(3.0, speed + 0.06);
     if (height % 10 === 0) { confettiBurst(90); Sound.win(); }
     spawnMoving();
   }
@@ -1215,7 +1330,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         setTimeout(() => c.el.remove(), 250);
         coins.splice(i, 1);
         dist += 5;                          // bonus distance
-        Sound.pop(); Haptics.tap();
+        Sound.coin(); Haptics.tap();
         const ar = area.getBoundingClientRect();
         floatPop(ar.left + BIKE_X + 6, ar.top + 36, '+5 🪙', '#ffd23f');
       }
@@ -1225,7 +1340,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     for (const s of stars) { s.x -= speed; s.el.style.left = s.x + 'px'; }
     while (stars.length && stars[0].x < -40) { stars[0].el.remove(); stars.shift(); }
     starGap -= speed;
-    if (starGap <= 0) { spawnStar(); starGap = rand(900, 1500); }
+    if (starGap <= 0) { spawnStar(); starGap = rand(500, 900); }
     for (let i = stars.length - 1; i >= 0; i--) {
       const s = stars[i];
       if (s.x < BIKE_X + BIKE_W && s.x + 30 > BIKE_X && Math.abs(y - s.y) < 32) {
@@ -1233,7 +1348,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         setTimeout(() => s.el.remove(), 250);
         stars.splice(i, 1);
         shieldUntil = Date.now() + 5000;
-        Sound.perfect(); Haptics.hit();
+        Sound.whoosh(); Sound.perfect(); Haptics.hit();
         const ar = area.getBoundingClientRect();
         floatPop(ar.left + BIKE_X + 6, ar.top + 30, 'SHIELD! ⭐', '#ffd23f');
       }
@@ -1259,8 +1374,10 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
           setTimeout(() => r.el.remove(), 250);
           rocks.splice(i, 1);
           if (lives <= 0) { crash(); return; }
-          shieldUntil = Date.now() + 1200;   // brief mercy invincibility
-          Sound.crash(); Haptics.hit(); shakeEl(area);
+          shieldUntil = Date.now() + 1500;   // brief mercy invincibility
+          Sound.boom(); Haptics.hit(); shakeEl(area);  // soft hit, not crash
+          const ar = area.getBoundingClientRect();
+          floatPop(ar.left + BIKE_X + 6, ar.top + 30, 'OOPS! 💨', '#fff');
           updateHearts();
           break;
         }
@@ -1271,8 +1388,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   function start() {
     clearRocks(); clearCoins(); clearClouds(); clearStars();
     y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160;
-    cloudGap = 0; starGap = 600; jumps = 0; lives = 3;
-    shieldUntil = Date.now() + 1500; running = true;   // opening grace shield
+    cloudGap = 0; starGap = 400; jumps = 0; lives = 3;
+    shieldUntil = Date.now() + 2500; running = true;   // opening grace shield
     updateHearts();
     bike.classList.remove('shield');
     bike.style.bottom = GROUND + 'px';
@@ -1321,11 +1438,21 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let love = 0;
   let burstTimers = [];
   const clearBurst = () => { burstTimers.forEach(clearTimeout); burstTimers = []; };
+  // Per-person sound + burst color so each family member feels unique
+  const personFx = {
+    Mom:   { sound: () => Sound.sparkle(), burst: '#ff6fb5', word: 'MOM!' },
+    Dad:   { sound: () => Sound.pop(),     burst: '#4d8bff', word: 'DAD!' },
+    Manha: { sound: () => Sound.jump(),    burst: '#ffd23f', word: 'SIS!' },
+    Noah:  { sound: () => Sound.blip(),    burst: '#2ecc71', word: 'ME!' },
+  };
   document.querySelectorAll('.person').forEach(p => {
     p.addEventListener('click', (e) => {
       msg.textContent = p.dataset.love;
-      Sound.pop();
-      popFromEvent(e, '💖', '#fff');
+      const name = (p.querySelector('.name') || {}).textContent || '';
+      const fx = personFx[name] || { sound: () => Sound.pop(), burst: '#fff', word: 'LOVE!' };
+      fx.sound();
+      popFromEvent(e, '💖', fx.burst);
+      if (p.classList.contains('fav')) burstFromEvent(e, fx.word, fx.burst);
       p.animate(
         [{ transform: 'scale(1)' }, { transform: 'scale(1.15)' }, { transform: 'scale(1)' }],
         { duration: 350 }
@@ -1334,7 +1461,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       fill.style.width = love + '%';
       if (love >= 100) {
         msg.textContent = "Noah's family is FULL of love! 💖";
-        confettiBurst(120); Sound.win();
+        confettiAt(e, 120); Sound.win();
         const hearts = ['💖', '💝', '💞', '❤️', '💕', '💗'];
         for (let i = 0; i < 14; i++) {
           burstTimers.push(setTimeout(() => floatPop(
@@ -1346,7 +1473,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         love = 0;
         burstTimers.push(setTimeout(() => { fill.style.width = '0%'; }, 700));
       } else if (p.classList.contains('fav')) {
-        confettiBurst(40);
+        confettiAt(e, 40);
       }
     });
   });
@@ -1358,11 +1485,24 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 
 /* ============================================================
    FRIENDS — high-five all 10 to win a round
+   Names are trivially editable here if a friendship changes.
    ============================================================ */
 (() => {
   const grid = $('friendsGrid'), scoreEl = $('fiveScore'), roundEl = $('friendsRound');
   const note = document.querySelector('#friends .card-text');
-  const faces = ['👦', '👧', '🧒', '👦🏽', '👧🏾', '🧒🏼', '👦🏿', '👧🏻', '🧒🏽', '👦🏼'];
+  // Editable list — face + first name for each of Noah's 10 friends
+  const friends = [
+    { face: '👦', name: 'Leo' },
+    { face: '👧', name: 'Mia' },
+    { face: '🧒', name: 'Sam' },
+    { face: '👦🏽', name: 'Omar' },
+    { face: '👧🏾', name: 'Ava' },
+    { face: '🧒🏼', name: 'Max' },
+    { face: '👦🏿', name: 'Jay' },
+    { face: '👧🏻', name: 'Zoe' },
+    { face: '🧒🏽', name: 'Ben' },
+    { face: '👦🏼', name: 'Kai' }
+  ];
   const reactions = ['🙌', '✋', '🤚', '👏', '🤩', '😄', '🎉'];
   let total = Store.getNum('fives');
   let round = Store.getNum('friendsRound', 1);
@@ -1372,25 +1512,25 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   scoreEl.textContent = total;
   roundEl.textContent = round;
 
-  faces.forEach((face, idx) => {
+  friends.forEach((f, idx) => {
     const btn = document.createElement('button');
     btn.className = 'friend';
-    btn.textContent = face;
-    btn.setAttribute('aria-label', 'High five friend ' + (idx + 1));
+    btn.innerHTML = `<span class="friend-face">${f.face}</span><span class="friend-name">${f.name}</span>`;
+    btn.setAttribute('aria-label', 'High five ' + f.name);
     btn.addEventListener('click', (e) => {
       btn.classList.remove('fived'); void btn.offsetWidth; btn.classList.add('fived');
       Sound.pop();
       popFromEvent(e, reactions[randInt(0, reactions.length - 1)], '#fff');
       total++; scoreEl.textContent = total; Store.set('fives', total);
       done.add(idx);
-      const left = faces.length - done.size;
-      if (done.size === faces.length) {
+      const left = friends.length - done.size;
+      if (done.size === friends.length) {
         note.textContent = '🎉 Round complete! High-five them all again! 🙌';
-        confettiBurst(120); Sound.win();
+        confettiAt(e, 120); Sound.win();
         round++; roundEl.textContent = round; Store.set('friendsRound', round); Store.set('friendsDone', round - 1);
         done.clear();
         clearTimeout(resetT);
-        resetT = setTimeout(() => grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived')), 700);
+        resetT = setTimeout(() => grid.querySelectorAll('.friend').forEach(el => el.classList.remove('fived')), 700);
       } else {
         note.textContent = `${left} more friend${left === 1 ? '' : 's'} to high-five! ✋`;
       }
@@ -1402,9 +1542,82 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     enter() {
       done.clear();
       note.textContent = 'High-five all 10 friends to win the round! 🙌';
-      grid.querySelectorAll('.friend').forEach(f => f.classList.remove('fived'));
+      grid.querySelectorAll('.friend').forEach(el => el.classList.remove('fived'));
     },
     leave() { clearTimeout(resetT); },
+  });
+})();
+
+/* ============================================================
+   TROPHY ROOM — wall of earned stickers from real best scores
+   ============================================================ */
+(() => {
+  const wall = $('trophyWall');
+  const note = document.querySelector('#trophies .card-text');
+  if (!wall) return;
+
+  const TROPHIES = [
+    { id: 'soccer5',  key: 'soccerBest',  min: 5,   emoji: '⚽', label: 'Soccer Star' },
+    { id: 'race1',    key: 'raceWins',    min: 1,   emoji: '🏎️', label: 'Race Champ' },
+    { id: 'bat10',    key: 'batBest',     min: 10,  emoji: '🦇', label: 'Bat Catcher' },
+    { id: 'punch38',  key: 'punchBest',   min: 38,  emoji: '💙', label: 'Blue Belt' },
+    { id: 'punch70',  key: 'punchBest',   min: 70,  emoji: '🥋', label: 'Black Belt' },
+    { id: 'cop10',    key: 'copBest',     min: 10,  emoji: '🚓', label: 'Top Cop' },
+    { id: 'blast30',  key: 'blastBest',   min: 30,  emoji: '🔫', label: 'Blaster Ace' },
+    { id: 'stack10',  key: 'stackBest',   min: 10,  emoji: '🧱', label: 'Stack Master' },
+    { id: 'bike100',  key: 'bikeBest',    min: 100, emoji: '🏍️', label: 'Bike Hero' },
+    { id: 'fives1',   key: 'fives',       min: 1,   emoji: '🙌', label: 'Friend Five' },
+    { id: 'rounds',   key: 'friendsDone', min: 1,   emoji: '🔁', label: 'Round Champ' },
+    { id: 'goal1',    key: 'soccerBest',  min: 1,   emoji: '🎉', label: 'First Goal' },
+  ];
+
+  function render() {
+    wall.innerHTML = '';
+    let earned = 0;
+    const newly = [];
+    TROPHIES.forEach(t => {
+      const has = Store.getNum(t.key) >= t.min;
+      if (has) earned++;
+      const seenKey = 'trophySeen:' + t.id;
+      if (has && Store.get(seenKey, '0') !== '1') {
+        newly.push(t);
+        Store.set(seenKey, '1');
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'trophy' + (has ? ' earned' : ' locked');
+      btn.innerHTML = `<span class="trophy-emoji">${t.emoji}</span><span class="trophy-label">${t.label}</span>`;
+      btn.setAttribute('aria-label', has ? t.label + ' unlocked' : t.label + ' locked');
+      btn.addEventListener('click', (e) => {
+        if (!has) { Sound.miss(); popFromEvent(e, '🔒', '#fff'); return; }
+        Sound.perfect();
+        confettiAt(e, 50);
+        popFromEvent(e, t.emoji, '#ffd23f');
+      });
+      wall.appendChild(btn);
+    });
+    Store.set('trophiesEarned', earned);
+    if (note) {
+      note.textContent = earned === 0
+        ? 'Play games to earn shiny trophies! 🏆'
+        : `You unlocked ${earned} of ${TROPHIES.length} trophies! 🌟`;
+    }
+    if (newly.length) {
+      confettiBurst(100);
+      Sound.win();
+      newly.forEach((t, i) => {
+        setTimeout(() => floatPop(
+          rand(60, innerWidth - 60),
+          rand(innerHeight * 0.35, innerHeight * 0.6),
+          t.emoji + ' NEW!', '#ffd23f'
+        ), i * 180);
+      });
+    }
+  }
+
+  registerGame('trophies', {
+    enter() { render(); },
+    leave() {},
   });
 })();
 

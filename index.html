@@ -17,6 +17,8 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" /></noscript>
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
 </head>
 <body>
   <!-- Comic halftone + floating sticker shapes -->
@@ -84,6 +86,7 @@
       <button class="tile t-pink"   data-go="family">     <span class="t-emoji">❤️</span><span class="t-name">Family</span></button>
       <button class="tile t-purple" data-go="friends">    <span class="t-emoji">🙌</span><span class="t-name">Friends</span></button>
       <button class="tile t-yellow" data-go="nostudy">    <span class="t-emoji">📚</span><span class="t-name">Run!</span></button>
+      <button class="tile t-trophy" data-go="trophies">   <span class="t-emoji">🏆</span><span class="t-name">Trophies</span></button>
     </nav>
 
     <footer class="home-foot">
@@ -271,11 +274,26 @@
     <div id="studyMsg" class="study-msg"></div>
   </section>
 
+  <!-- ================= TROPHIES ================= -->
+  <section id="trophies" class="screen game card-trophy" aria-label="Trophy room" data-screen-label="Trophies">
+    <h2>🏆 My Trophies</h2>
+    <p class="card-text">Play games to earn shiny trophies! 🏆</p>
+    <div id="trophyWall" class="trophy-wall" aria-label="Trophy stickers"></div>
+  </section>
+
   </main>
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" aria-hidden="true"></canvas>
 
   <script src="script.js"></script>
   <script src="mascot.js"></script>
+  <script>
+    // Service worker only on http(s) — file:// double-click stays build-free.
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
