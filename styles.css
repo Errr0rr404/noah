@@ -38,6 +38,7 @@ button {
   --purple: #9b5de5;
   --yellow: #ffe156;
   --space: #7b2ff7;
+  --world: #00a2ff;
 
   /* Comic system */
   --ink: #20143a;                 /* outline color — deep ink, warmer than black */
@@ -501,6 +502,7 @@ h2 {
 .t-purple { background: var(--purple); }
 .t-yellow { background: var(--yellow); }
 .t-space  { background: var(--space); }
+.t-world  { background: var(--world); }
 
 .home-foot {
   text-align: center;
@@ -544,6 +546,7 @@ h2 {
 .card-purple { background: var(--purple); }
 .card-yellow { background: var(--yellow); color: var(--ink); }
 .card-space  { background: #3a1c71; }
+.card-world  { background: linear-gradient(180deg, #00a2ff 0%, #2ecc71 78%); }
 
 .score-board {
   text-align: center;
@@ -931,6 +934,67 @@ h2 {
 .block.falling {
   z-index: 2;
   transition: transform .6s ease-in, opacity .6s;
+}
+
+/* ===================== NOAH WORLD (Roblox-style playground) ===================== */
+.world-stage {
+  position: relative;
+  height: min(52vh, 440px);
+  min-height: 280px;
+  border-radius: 22px;
+  border: var(--bw-fat) solid var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  background: #4dc3ff;
+  touch-action: none;
+}
+#worldCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.world-stick {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .38);
+  border: 4px solid var(--ink);
+  box-shadow: 0 5px 0 var(--ink);
+  z-index: 4;
+  touch-action: none;
+}
+.world-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--sun);
+  border: 4px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.world-hint {
+  position: absolute;
+  left: 44px;
+  bottom: 112px;
+  font-size: 2.1rem;
+  line-height: 1;
+  z-index: 5;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 0 var(--ink));
+  animation: worldHint 1s ease-in-out infinite;
+}
+.world-hint.hide { display: none; }
+@keyframes worldHint {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(8px) scale(1.12); }
 }
 
 /* ===================== BIKES (runner) ===================== */
@@ -1331,6 +1395,9 @@ h2 {
 
 /* ===================== RESPONSIVE ===================== */
 @media (max-width: 420px) {
+  .world-stick { width: 88px; height: 88px; }
+  .world-knob { width: 38px; height: 38px; }
+  .world-hint { left: 36px; bottom: 100px; }
   .friends-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
@@ -1460,7 +1527,8 @@ h2 {
   .comic-burst,
   .flee,
   .blast-target.splat,
-  .shoot-btn.open {
+  .shoot-btn.open,
+  .world-hint {
     animation: none !important;
   }
   .screen.game.active,

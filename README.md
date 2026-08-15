@@ -25,8 +25,8 @@ static HTML/CSS/JS.
 ## Games
 
 Soccer Star, Tap Race, Bat Catch, Power Punch, Police Chase, Silly Blaster,
-Block Stack, Bike Run, Noah's Family, My 10 Friends, Catch the Book, and
-My Trophies — 12 screens in total.
+Block Stack, Noah World, Bike Run, Noah's Family, My 10 Friends, Catch the Book,
+and My Trophies — 13 screens in total.
 
 ## Run locally
 

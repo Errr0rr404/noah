@@ -176,7 +176,7 @@ const canvas = $('confettiCanvas');
 const cctx = canvas.getContext('2d');
 let confetti = [];
 const CONFETTI_CAP = 280;
-const CONFETTI_EMOJIS = ['⭐', '⚡', '💥', '⚽', '🦇', '🏆'];
+const CONFETTI_EMOJIS = ['⭐', '⚡', '💥', '⚽', '🦇', '🏆', '🧊'];
 function sizeCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(innerWidth * dpr);
@@ -268,7 +268,7 @@ const registerGame = (id, hooks) => { Games[id] = hooks; };
 // Emoji labels for prev/next arrows (matches home tiles)
 const GAME_EMOJI = {
   soccer: '⚽', cars: '🏎️', batman: '🦇', kickboxing: '🥊', police: '🚓',
-  blaster: '🔫', minecraft: '⛏️', bikes: '🏍️', family: '❤️', friends: '🙌',
+  blaster: '🔫', minecraft: '⛏️', world: '🧊', bikes: '🏍️', family: '❤️', friends: '🙌',
   nostudy: '📚', trophies: '🏆',
 };
 
@@ -349,8 +349,8 @@ document.querySelectorAll('.tile').forEach((tile, i) => {
 const TILE_BEST = {
   soccer: ['soccerBest', '🏆'], cars: ['raceWins', '🏆'], batman: ['batBest', '🏆'],
   kickboxing: ['punchBest', '🏆'], police: ['copBest', '🏆'], blaster: ['blastBest', '🏆'],
-  minecraft: ['stackBest', '🏆'], bikes: ['bikeBest', '🏆'], friends: ['friendsDone', '🔁'],
-  trophies: ['trophiesEarned', '🏆'],
+  minecraft: ['stackBest', '🏆'], world: ['worldBest', '🪙'], bikes: ['bikeBest', '🏆'],
+  friends: ['friendsDone', '🔁'], trophies: ['trophiesEarned', '🏆'],
 };
 function refreshTileBadges() {
   document.querySelectorAll('.tile').forEach(tile => {
@@ -369,6 +369,7 @@ refreshTileBadges();
   let sx = 0, sy = 0, tracking = false;
   window.addEventListener('touchstart', (e) => {
     if (current === 'home' || e.touches.length !== 1) { tracking = false; return; }
+    if (e.target && e.target.closest && e.target.closest('[data-no-swipe]')) { tracking = false; return; }
     sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
   }, { passive: true });
   window.addEventListener('touchend', (e) => {
@@ -1217,6 +1218,627 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
 })();
 
 /* ============================================================
+   NOAH WORLD — tiny Roblox-style 3D playground
+   Walk, jump, collect coins, finish the rainbow obby.
+   Mostly-winning: no death, falling just lands (or a soft respawn).
+   ============================================================ */
+(() => {
+  const stage = $('worldStage'), canvas = $('worldCanvas');
+  const stick = $('worldStick'), knob = $('worldKnob'), hint = $('worldHint');
+  const jumpBtn = $('worldJump'), msg = $('worldMsg');
+  const scoreEl = $('worldScore'), bestEl = $('worldBest');
+  if (!stage || !canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const PW = 0.42, PD = 0.42, PH = 1.85;
+  let W = 320, H = 280, FOV = 260;
+  let active = false, rafId = null, lastT = 0;
+  let px = 0, py = 0, pz = 0, vx = 0, vy = 0, vz = 0, yaw = 0;
+  let grounded = true, walkPhase = 0, score = 0, best = Store.getNum('worldBest');
+  let won = false, honked = false, hinted = false;
+  let stickX = 0, stickY = 0, stickHeld = false, canvasHeld = false;
+  let walkTx = null, walkTz = null;
+  const keys = Object.create(null);
+  const cam = { x: 0, y: 10.2, z: -16.5 };
+  let basis = { fx: 0, fy: 0, fz: 1, rx: 1, ry: 0, rz: 0, ux: 0, uy: 1, uz: 0 };
+  let solids = [];
+  let coins = [];
+  let pals = [];
+  const cheers = ['NICE! 🌟', 'COIN! 🪙', 'YES! 🎉', 'WOO! ⚡', 'GOT IT! 💥'];
+
+  if (bestEl) bestEl.textContent = best;
+
+  function box(x, y, z, w, h, d, color, extra) {
+    return Object.assign({ x, y, z, w, h, d, color, solid: true }, extra || {});
+  }
+  function hexRgb(hex) {
+    const n = parseInt(String(hex).replace('#', ''), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function shade(hex, k, fog) {
+    const rgb = hexRgb(hex);
+    const sky = [110, 200, 150];
+    const f = fog || 0;
+    const r = clamp(Math.round(rgb[0] * k * (1 - f) + sky[0] * f), 0, 255);
+    const g = clamp(Math.round(rgb[1] * k * (1 - f) + sky[1] * f), 0, 255);
+    const b = clamp(Math.round(rgb[2] * k * (1 - f) + sky[2] * f), 0, 255);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  function buildWorld() {
+    solids = [];
+    // Baseplate + spawn + path
+    solids.push(box(0, -0.35, 6, 70, 0.35, 80, '#2ebb5a', { solid: false, topOnly: true }));
+    solids.push(box(0, 0, 0, 4.2, 0.1, 4.2, '#9aa3b2'));
+    solids.push(box(0, 0.1, 0, 1.6, 0.06, 1.6, '#ffd23f', { solid: false }));
+    solids.push(box(0, 0, 3.4, 2.2, 0.08, 3.2, '#f4d35e', { solid: false }));
+    // Bounce pad — a mercy launch toward the obby
+    solids.push(box(0, 0, 5.4, 2.4, 0.28, 2.4, '#5ee7df', { tag: 'bounce' }));
+    // House (solid block + roof dressing)
+    solids.push(box(-10.2, 0, -7.4, 5.2, 3.1, 5.2, '#fff1d6'));
+    solids.push(box(-10.2, 3.1, -7.4, 5.8, 0.45, 5.8, '#ff5e5b', { solid: false }));
+    solids.push(box(-10.2, 3.55, -7.4, 4.2, 0.4, 4.2, '#e74c3c', { solid: false }));
+    solids.push(box(-10.2, 3.95, -7.4, 2.4, 0.35, 2.4, '#c0392b', { solid: false }));
+    solids.push(box(-8.6, 3.3, -5.6, 0.55, 1.1, 0.55, '#8b5a2b', { solid: false }));
+    solids.push(box(-8.4, 2.2, -4.75, 0.12, 0.7, 0.9, '#4d8bff', { solid: false }));
+    solids.push(box(-11.8, 2.2, -4.75, 0.12, 0.7, 0.9, '#4d8bff', { solid: false }));
+    solids.push(box(-10.2, 1.15, -4.72, 1.1, 1.15, 0.12, '#6b3a17', { solid: false }));
+    solids.push(box(-9.4, 2.45, -4.68, 0.55, 0.45, 0.08, '#ffd23f', { solid: false }));
+    // Golden Lambo
+    solids.push(box(9.4, 0.28, -5.2, 2.9, 0.5, 1.35, '#ffd23f'));
+    solids.push(box(9.7, 0.78, -5.2, 1.5, 0.38, 1.2, '#fff8dc'));
+    solids.push(box(8.2, 0.12, -5.75, 0.45, 0.28, 0.28, '#20143a'));
+    solids.push(box(8.2, 0.12, -4.65, 0.45, 0.28, 0.28, '#20143a'));
+    solids.push(box(10.55, 0.12, -5.75, 0.45, 0.28, 0.28, '#20143a'));
+    solids.push(box(10.55, 0.12, -4.65, 0.45, 0.28, 0.28, '#20143a'));
+    // Trees
+    [[-13, 4], [12, 3], [-6, -12], [7, -11], [13, 14]].forEach(([x, z]) => {
+      solids.push(box(x, 0, z, 0.55, 1.35, 0.55, '#8b5a2b'));
+      solids.push(box(x, 1.3, z, 2.15, 1.9, 2.15, '#27ae60', { solid: false }));
+    });
+    // Flower dots
+    [[-4, 2.2, '#ff6fb5'], [4.4, 1.4, '#9b5de5'], [-3.2, -3.5, '#ff5e5b'], [5.6, -2.4, '#ffd23f']].forEach(([x, z, c]) => {
+      solids.push(box(x, 0, z, 0.35, 0.45, 0.35, c, { solid: false }));
+    });
+    // Rainbow obby — almost a straight line so running forward + jump wins
+    solids.push(box(0, 0.15, 8.2, 4.2, 0.42, 3.8, '#2ecc71'));
+    solids.push(box(0.4, 1.2, 11.6, 4.0, 0.42, 3.6, '#ffd23f'));
+    solids.push(box(-0.3, 2.25, 15.0, 4.0, 0.42, 3.6, '#ff9f1c'));
+    solids.push(box(0.3, 3.3, 18.4, 4.0, 0.42, 3.6, '#ff5e5b'));
+    solids.push(box(0, 4.4, 22.0, 4.8, 0.5, 4.4, '#9b5de5', { tag: 'finish' }));
+    // Little showcase towers
+    solids.push(box(-6.5, 0, 8, 1.1, 1.1, 1.1, '#4d8bff'));
+    solids.push(box(-6.5, 1.1, 8, 0.85, 0.85, 0.85, '#ff6fb5'));
+    solids.push(box(-6.5, 1.95, 8, 0.6, 0.6, 0.6, '#ffd23f'));
+
+    coins = [
+      { x: 1.6, y: 0.7, z: 1.8 }, { x: -1.8, y: 0.7, z: 2.2 },
+      { x: 0, y: 1.1, z: 5.4 }, { x: -8.4, y: 0.8, z: -3.6 },
+      { x: 9.4, y: 1.6, z: -5.2 }, { x: 0, y: 1.2, z: 8.2 },
+      { x: 0.4, y: 2.25, z: 11.6 }, { x: -0.3, y: 3.3, z: 15.0 },
+      { x: 0.3, y: 4.35, z: 18.4 }, { x: -1.1, y: 5.55, z: 21.4 },
+      { x: 1.1, y: 5.55, z: 22.4 }, { x: 0, y: 5.85, z: 22.0 },
+    ].map((c) => Object.assign({ got: false, spin: rand(0, Math.PI * 2) }, c));
+
+    pals = [
+      { x: -5.4, z: 2.6, name: 'Leo', face: '👦', hit: false, pal: { head: '#ffcd9e', torso: '#2ecc71', arms: '#ffcd9e', legs: '#1e8449' } },
+      { x: 5.2, z: 1.8, name: 'Mia', face: '👧', hit: false, pal: { head: '#ffcd9e', torso: '#ff6fb5', arms: '#ffcd9e', legs: '#9b5de5' } },
+      { x: -7.2, z: -3.4, name: 'Sam', face: '🧒', hit: false, pal: { head: '#ffcd9e', torso: '#ff9f1c', arms: '#ffcd9e', legs: '#e67e22' } },
+    ];
+  }
+
+  function sizeWorld() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(1, stage.clientWidth);
+    H = Math.max(1, stage.clientHeight);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    FOV = H * 0.92;
+  }
+
+  function updateBasis() {
+    let fx = px - cam.x, fy = (py + 1.35) - cam.y, fz = pz - cam.z;
+    const fl = Math.hypot(fx, fy, fz) || 1;
+    fx /= fl; fy /= fl; fz /= fl;
+    let rx = -fz, ry = 0, rz = fx;
+    const rl = Math.hypot(rx, rz) || 1;
+    rx /= rl; rz /= rl;
+    const ux = ry * fz - rz * fy;
+    const uy = rz * fx - rx * fz;
+    const uz = rx * fy - ry * fx;
+    basis = { fx, fy, fz, rx, ry, rz, ux, uy, uz };
+  }
+  function project(x, y, z) {
+    const b = basis;
+    const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
+    const cz = dx * b.fx + dy * b.fy + dz * b.fz;
+    if (cz < 0.45) return null;
+    const cx = dx * b.rx + dy * b.ry + dz * b.rz;
+    const cy = dx * b.ux + dy * b.uy + dz * b.uz;
+    return { x: W / 2 + cx * FOV / cz, y: H / 2 - cy * FOV / cz, z: cz, s: FOV / cz };
+  }
+  function screenToGround(sx, sy) {
+    const b = basis;
+    const cdx = (sx - W / 2) / FOV;
+    const cdy = -(sy - H / 2) / FOV;
+    const dx = b.rx * cdx + b.ux * cdy + b.fx;
+    const dy = b.ry * cdx + b.uy * cdy + b.fy;
+    const dz = b.rz * cdx + b.uz * cdy + b.fz;
+    if (Math.abs(dy) < 1e-4) return null;
+    const t = -cam.y / dy;
+    if (t < 0.4) return null;
+    return { x: cam.x + dx * t, z: cam.z + dz * t };
+  }
+
+  const FACE = [
+    { i: [4, 5, 6, 7], k: 1.16 },
+    { i: [0, 1, 5, 4], k: 0.90 },
+    { i: [3, 2, 6, 7], k: 1.02 },
+    { i: [0, 3, 7, 4], k: 0.76 },
+    { i: [1, 2, 6, 5], k: 0.88 },
+  ];
+  function vertsOf(b) {
+    const hw = b.w / 2, hd = b.d / 2;
+    return [
+      [b.x - hw, b.y, b.z - hd], [b.x + hw, b.y, b.z - hd],
+      [b.x + hw, b.y, b.z + hd], [b.x - hw, b.y, b.z + hd],
+      [b.x - hw, b.y + b.h, b.z - hd], [b.x + hw, b.y + b.h, b.z - hd],
+      [b.x + hw, b.y + b.h, b.z + hd], [b.x - hw, b.y + b.h, b.z + hd],
+    ];
+  }
+  function putFigure(list, x, y, z, pal, anim, faceYaw, moving) {
+    const bob = (!REDUCE && moving) ? Math.sin(anim) * 0.05 : 0;
+    const swing = (!REDUCE && moving) ? Math.sin(anim) * 0.2 : 0;
+    const cy = y + bob;
+    const c = Math.cos(faceYaw), s = Math.sin(faceYaw);
+    function put(lx, ly, lz, w, h, d, color) {
+      list.push({
+        x: x + lx * c + lz * s, y: cy + ly, z: z - lx * s + lz * c,
+        w, h, d, color, solid: false,
+      });
+    }
+    put(0, 1.32, 0, 0.64, 0.56, 0.58, pal.head);
+    put(0, 0.62, 0, 0.82, 0.7, 0.48, pal.torso);
+    put(-0.56, 0.68, 0, 0.24, 0.56, 0.24, pal.arms);
+    put(0.56, 0.68, 0, 0.24, 0.56, 0.24, pal.arms);
+    put(-0.22, 0, swing, 0.3, 0.62, 0.3, pal.legs);
+    put(0.22, 0, -swing, 0.3, 0.62, 0.3, pal.legs);
+    if (pal.cape) put(0, 0.58, -0.34, 0.62, 0.78, 0.1, pal.cape);
+  }
+
+  function collectFaces(boxes, out) {
+    for (const b of boxes) {
+      const vs = vertsOf(b);
+      const faces = b.topOnly ? FACE.filter((f) => f.k > 1.1) : FACE;
+      for (const f of faces) {
+        const pts = [];
+        let depth = 0, ok = true;
+        for (const idx of f.i) {
+          const p = project(vs[idx][0], vs[idx][1], vs[idx][2]);
+          if (!p) { ok = false; break; }
+          pts.push(p);
+          depth += p.z;
+        }
+        if (!ok) continue;
+        out.push({ kind: 'face', z: depth / 4, pts, color: b.color, k: f.k });
+      }
+    }
+  }
+
+  function draw() {
+    updateBasis();
+    ctx.clearRect(0, 0, W, H);
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#7ad7ff');
+    sky.addColorStop(0.55, '#4dc3ff');
+    sky.addColorStop(1, '#9be7a6');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Sun
+    ctx.beginPath();
+    ctx.fillStyle = '#ffe566';
+    ctx.arc(W * 0.84, H * 0.14, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#20143a';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Soft screen-space clouds
+    ctx.fillStyle = 'rgba(255,255,255,.78)';
+    [[0.18, 0.16, 34], [0.42, 0.10, 26], [0.62, 0.18, 22]].forEach(([nx, ny, r]) => {
+      const cx = (nx * W + (-cam.x * 4) % W + W) % W;
+      ctx.beginPath();
+      ctx.ellipse(cx, ny * H, r, r * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    const drawBoxes = solids.slice();
+    const moving = Math.hypot(vx, vz) > 0.02;
+    if (moving) walkPhase += 0.28;
+    putFigure(drawBoxes, px, py, pz, {
+      head: '#ffd84d', torso: '#4d8bff', arms: '#ffd84d', legs: '#ff5e5b', cape: '#e74c3c',
+    }, walkPhase, yaw, moving);
+    pals.forEach((p, i) => {
+      putFigure(drawBoxes, p.x, 0, p.z, p.pal, lastT * 0.004 + i, 0.6, false);
+    });
+
+    const items = [];
+    collectFaces(drawBoxes, items);
+
+    // Ground studs (classic Roblox plate)
+    for (let gx = -22; gx <= 22; gx += 2) {
+      for (let gz = -16; gz <= 32; gz += 2) {
+        const p = project(gx, 0.03, gz);
+        if (!p || p.z > 32 || p.x < -20 || p.x > W + 20) continue;
+        items.push({ kind: 'stud', z: p.z, p });
+      }
+    }
+    // Player blob shadow
+    const sh = project(px, 0.02, pz);
+    if (sh) items.push({ kind: 'shadow', z: sh.z - 0.01, p: sh });
+
+    coins.forEach((c) => {
+      if (c.got) return;
+      const p = project(c.x, c.y, c.z);
+      if (p) items.push({ kind: 'coin', z: p.z, p, spin: c.spin });
+    });
+    const trophy = project(0, 6.2, 22.0);
+    if (trophy) items.push({ kind: 'trophy', z: trophy.z, p: trophy });
+
+    items.sort((a, b) => b.z - a.z);
+    for (const it of items) {
+      const fog = clamp((it.z - 16) / 36, 0, 0.28);
+      if (it.kind === 'face') {
+        ctx.beginPath();
+        ctx.moveTo(it.pts[0].x, it.pts[0].y);
+        for (let i = 1; i < it.pts.length; i++) ctx.lineTo(it.pts[i].x, it.pts[i].y);
+        ctx.closePath();
+        ctx.fillStyle = shade(it.color, it.k, fog);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(32,20,58,' + (0.85 - fog * 0.5) + ')';
+        ctx.lineWidth = Math.max(1, (it.pts[0].s || 8) * 0.045);
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      } else if (it.kind === 'stud') {
+        ctx.beginPath();
+        ctx.ellipse(it.p.x, it.p.y, it.p.s * 0.16, it.p.s * 0.08, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(20,60,30,' + (0.16 * (1 - fog)) + ')';
+        ctx.fill();
+      } else if (it.kind === 'shadow') {
+        ctx.beginPath();
+        ctx.ellipse(it.p.x, it.p.y, it.p.s * 0.42, it.p.s * 0.18, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(32,20,58,.28)';
+        ctx.fill();
+      } else if (it.kind === 'coin') {
+        const squish = 0.35 + Math.abs(Math.cos(it.spin)) * 0.65;
+        ctx.beginPath();
+        ctx.ellipse(it.p.x, it.p.y, it.p.s * 0.28 * squish, it.p.s * 0.28, 0, 0, Math.PI * 2);
+        ctx.fillStyle = shade('#ffd23f', 1.05, fog);
+        ctx.fill();
+        ctx.strokeStyle = '#20143a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else if (it.kind === 'trophy') {
+        ctx.save();
+        ctx.font = Math.round(it.p.s * 0.85) + 'px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(won ? '🏆' : '🌟', it.p.x, it.p.y);
+        ctx.restore();
+      }
+    }
+  }
+
+  function overlaps(x, y, z, b) {
+    const hw = b.w / 2, hd = b.d / 2;
+    return x + PW > b.x - hw && x - PW < b.x + hw &&
+           z + PD > b.z - hd && z - PD < b.z + hd &&
+           y < b.y + b.h && y + PH > b.y;
+  }
+  function collide(prevY) {
+    grounded = py <= 0.02;
+    if (py < 0) { py = 0; vy = 0; grounded = true; }
+    for (const b of solids) {
+      if (!b.solid) continue;
+      if (!overlaps(px, py, pz, b)) continue;
+      const top = b.y + b.h;
+      const step = top - prevY;
+      const crossedTop = prevY >= top - 0.14 && py <= top + 0.1;
+      const walkOnto = step >= -0.08 && step <= 0.75 && py < top + 0.2;
+      // Land when falling onto a top, or stepping up onto a short pad.
+      if (vy <= 0.2 && (crossedTop || walkOnto)) {
+        py = top;
+        vy = 0;
+        grounded = true;
+        if (b.tag === 'bounce') {
+          vy = 0.4;
+          grounded = false;
+          Sound.jump();
+        }
+        continue;
+      }
+      const hw = b.w / 2, hd = b.d / 2;
+      const dxL = (px + PW) - (b.x - hw);
+      const dxR = (b.x + hw) - (px - PW);
+      const dzN = (pz + PD) - (b.z - hd);
+      const dzF = (b.z + hd) - (pz - PD);
+      if (Math.min(dxL, dxR) < Math.min(dzN, dzF)) {
+        px += (dxL < dxR) ? -dxL : dxR;
+      } else {
+        pz += (dzN < dzF) ? -dzN : dzF;
+      }
+    }
+  }
+
+  function popAtPlayer(text, color) {
+    const p = project(px, py + 1.8, pz);
+    if (!p) { floatPop(innerWidth / 2, innerHeight / 2, text, color); return; }
+    const r = canvas.getBoundingClientRect();
+    floatPop(r.left + p.x, r.top + p.y, text, color);
+  }
+
+  function persistBest() {
+    if (score > best) {
+      best = score;
+      if (bestEl) bestEl.textContent = best;
+      Store.set('worldBest', best);
+    }
+  }
+  function finishObby() {
+    won = true;
+    score += 10;
+    if (scoreEl) scoreEl.textContent = score;
+    persistBest();
+    Store.set('worldObby', 1);
+    if (msg) msg.textContent = 'YOU DID THE OBBY! 🏆🌈';
+    Sound.winHero();
+    confettiBurst(140);
+    popAtPlayer('🏆 OBBY!', '#ffd23f');
+    shakeEl(stage);
+  }
+
+  function hideHint() {
+    if (hinted) return;
+    hinted = true;
+    if (hint) hint.classList.add('hide');
+  }
+  function jump() {
+    if (!active) return;
+    hideHint();
+    if (grounded) {
+      vy = 0.3;
+      grounded = false;
+      Sound.jump();
+      Haptics.tap();
+    }
+  }
+
+  function setStick(nx, ny) {
+    stickX = clamp(nx, -1, 1);
+    stickY = clamp(ny, -1, 1);
+    if (knob) knob.style.transform = 'translate(calc(-50% + ' + (stickX * 28) + 'px), calc(-50% + ' + (stickY * 28) + 'px))';
+  }
+  function stickFromEvent(e) {
+    const r = stick.getBoundingClientRect();
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const nx = ((p.clientX - r.left) / r.width - 0.5) * 2;
+    const ny = ((p.clientY - r.top) / r.height - 0.5) * 2;
+    const mag = Math.hypot(nx, ny) || 1;
+    const cap = Math.min(1, mag);
+    setStick((nx / mag) * cap, (ny / mag) * cap);
+  }
+  function aimFromEvent(e) {
+    const r = canvas.getBoundingClientRect();
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const g = screenToGround(p.clientX - r.left, p.clientY - r.top);
+    if (!g) return;
+    walkTx = g.x; walkTz = g.z;
+    hideHint();
+  }
+
+  function stepWorld(dt) {
+    let ix = stickX, iz = -stickY;
+    if (keys.w || keys.arrowup) iz += 1;
+    if (keys.s || keys.arrowdown) iz -= 1;
+    if (keys.a) ix -= 1;
+    if (keys.d) ix += 1;
+    // Camera-relative: stick forward = world +Z (obby), right = +X
+    if (!stickHeld && walkTx != null) {
+      const dx = walkTx - px, dz = walkTz - pz;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 0.35) { walkTx = walkTz = null; ix = 0; iz = 0; }
+      else { ix = dx / dist; iz = dz / dist; }
+    }
+    const mag = Math.hypot(ix, iz);
+    if (mag > 1) { ix /= mag; iz /= mag; }
+    const speed = 0.135 * dt;
+    vx = ix * speed;
+    vz = iz * speed;
+    if (mag > 0.08) yaw = Math.atan2(ix, iz);
+
+    const prevY = py;
+    px += vx;
+    pz += vz;
+    vy -= 0.011 * dt;
+    py += vy * dt;
+
+    collide(prevY);
+
+    if (!won && grounded && py >= 4.75 && Math.hypot(px, pz - 22.0) < 2.2) {
+      finishObby();
+    }
+
+    // Soft world bounds — oops, back to spawn
+    if (py < -1.5 || Math.abs(px) > 18 || pz < -16 || pz > 30) {
+      px = 0; py = 0; pz = 0; vx = vy = vz = 0;
+      walkTx = walkTz = null;
+      Sound.whoosh();
+      if (msg) msg.textContent = 'OOPS! Back to spawn 💨';
+      popAtPlayer('OOPS! 💨', '#fff');
+    }
+
+    coins.forEach((c) => {
+      if (c.got) return;
+      c.spin += 0.09 * dt;
+      if (Math.hypot(px - c.x, pz - c.z) < 0.95 && Math.abs((py + 1) - c.y) < 1.4) {
+        c.got = true;
+        score++;
+        if (scoreEl) scoreEl.textContent = score;
+        persistBest();
+        Sound.coin();
+        Haptics.tap();
+        popAtPlayer(cheers[randInt(0, cheers.length - 1)], '#ffd23f');
+        if (score % 5 === 0) { confettiBurst(50); Sound.perfect(); }
+      }
+    });
+    pals.forEach((p) => {
+      if (p.hit) return;
+      if (Math.hypot(px - p.x, pz - p.z) < 1.25 && py < 1.2) {
+        p.hit = true;
+        score++;
+        if (scoreEl) scoreEl.textContent = score;
+        persistBest();
+        Sound.pop();
+        popAtPlayer('🙌 ' + p.name + '!', '#fff');
+        if (msg) msg.textContent = 'High five, ' + p.name + '! 🙌';
+      }
+    });
+    if (!honked && Math.hypot(px - 9.4, pz + 5.2) < 1.7 && py < 1.4) {
+      honked = true;
+      Sound.goal();
+      popAtPlayer('BEEP BEEP! 🏎️', '#ffd23f');
+    }
+
+    const ck = REDUCE ? 1 : 0.14;
+    cam.x += (px - cam.x) * ck;
+    cam.y += ((py + 10.2) - cam.y) * ck;
+    cam.z += ((pz - 16.5) - cam.z) * ck;
+  }
+
+  function loop(now) {
+    if (!active) return;
+    const dt = Math.min(2.2, (now - lastT) / 16.67);
+    lastT = now;
+    stepWorld(dt);
+    draw();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function onStickDown(e) {
+    if (!active) return;
+    stickHeld = true;
+    walkTx = walkTz = null;
+    hideHint();
+    if (e.pointerId != null && stick.setPointerCapture) {
+      try { stick.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    stickFromEvent(e);
+    if (e.cancelable) e.preventDefault();
+  }
+  function onStickMove(e) {
+    if (!stickHeld) return;
+    stickFromEvent(e);
+    if (e.cancelable) e.preventDefault();
+  }
+  function onStickUp() {
+    stickHeld = false;
+    setStick(0, 0);
+  }
+  function onCanvasDown(e) {
+    if (!active || e.target !== canvas) return;
+    canvasHeld = true;
+    if (e.pointerId != null && canvas.setPointerCapture) {
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    aimFromEvent(e);
+  }
+  function onCanvasMove(e) {
+    if (canvasHeld) aimFromEvent(e);
+  }
+  function onCanvasUp() { canvasHeld = false; }
+  function onKey(e, down) {
+    if (!active) return;
+    const k = e.key.toLowerCase();
+    if (k === 'w' || k === 'a' || k === 's' || k === 'd' || k === ' ') {
+      keys[k] = down;
+      if (k === ' ' && down) { e.preventDefault(); jump(); }
+      if (down) hideHint();
+    }
+  }
+  const keyDown = (e) => onKey(e, true);
+  const keyUp = (e) => onKey(e, false);
+
+  function bind() {
+    stick.addEventListener('pointerdown', onStickDown);
+    stick.addEventListener('pointermove', onStickMove);
+    stick.addEventListener('pointerup', onStickUp);
+    stick.addEventListener('pointercancel', onStickUp);
+    canvas.addEventListener('pointerdown', onCanvasDown);
+    canvas.addEventListener('pointermove', onCanvasMove);
+    canvas.addEventListener('pointerup', onCanvasUp);
+    canvas.addEventListener('pointercancel', onCanvasUp);
+    jumpBtn.addEventListener('click', jump);
+    window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
+    window.addEventListener('resize', sizeWorld);
+  }
+  function unbind() {
+    stick.removeEventListener('pointerdown', onStickDown);
+    stick.removeEventListener('pointermove', onStickMove);
+    stick.removeEventListener('pointerup', onStickUp);
+    stick.removeEventListener('pointercancel', onStickUp);
+    canvas.removeEventListener('pointerdown', onCanvasDown);
+    canvas.removeEventListener('pointermove', onCanvasMove);
+    canvas.removeEventListener('pointerup', onCanvasUp);
+    canvas.removeEventListener('pointercancel', onCanvasUp);
+    jumpBtn.removeEventListener('click', jump);
+    window.removeEventListener('keydown', keyDown);
+    window.removeEventListener('keyup', keyUp);
+    window.removeEventListener('resize', sizeWorld);
+  }
+
+  function reset() {
+    px = 0; py = 0; pz = 0; vx = 0; vy = 0; vz = 0; yaw = 0;
+    grounded = true; walkPhase = 0; score = 0; won = false; honked = false;
+    hinted = false; stickHeld = false; canvasHeld = false;
+    walkTx = walkTz = null;
+    Object.keys(keys).forEach((k) => { keys[k] = false; });
+    setStick(0, 0);
+    if (hint) hint.classList.remove('hide');
+    if (scoreEl) scoreEl.textContent = 0;
+    if (msg) msg.textContent = 'Drag to run, tap JUMP, grab coins, finish the rainbow! 🌈';
+    buildWorld();
+    cam.x = 0; cam.y = 10.2; cam.z = -16.5;
+    sizeWorld();
+    lastT = performance.now();
+  }
+
+  let bound = false;
+  registerGame('world', {
+    enter() {
+      reset();
+      active = true;
+      if (!bound) { bind(); bound = true; }
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(loop);
+    },
+    leave() {
+      active = false;
+      cancelAnimationFrame(rafId);
+      rafId = null;
+      stickHeld = false;
+      canvasHeld = false;
+      setStick(0, 0);
+      if (bound) { unbind(); bound = false; }
+    },
+  });
+})();
+
+/* ============================================================
    BIKES — endless jump runner
    ============================================================ */
 (() => {
@@ -1569,6 +2191,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     { id: 'fives1',   key: 'fives',       min: 1,   emoji: '🙌', label: 'Friend Five' },
     { id: 'rounds',   key: 'friendsDone', min: 1,   emoji: '🔁', label: 'Round Champ' },
     { id: 'goal1',    key: 'soccerBest',  min: 1,   emoji: '🎉', label: 'First Goal' },
+    { id: 'world8',   key: 'worldBest',   min: 8,   emoji: '🪙', label: 'Coin Hunter' },
+    { id: 'obby1',    key: 'worldObby',   min: 1,   emoji: '🧊', label: 'Obby Champ' },
   ];
 
   function render() {

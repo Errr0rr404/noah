@@ -16,15 +16,16 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# JS/CSS can be cached for a day (no content hashing in filenames).
+# No content hashing in filenames, so JS/CSS must revalidate or a
+# tablet can keep yesterday's game after a Netlify deploy.
 [[headers]]
   for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=86400"
+    Cache-Control = "public, max-age=0, must-revalidate"
 [[headers]]
   for = "/*.css"
   [headers.values]
-    Cache-Control = "public, max-age=86400"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # Service worker must revalidate so clients pick up new precache lists.
 [[headers]]

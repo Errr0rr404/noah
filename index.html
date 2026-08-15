@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Noah's Super World!</title>
-  <meta name="description" content="Noah's Super World — soccer, cars, Batman, Minecraft and more fun mini-games made just for Noah!" />
+  <meta name="description" content="Noah's Super World — soccer, cars, Batman, Minecraft, Noah World and more fun mini-games made just for Noah!" />
   <!-- Home-screen / tablet app feel -->
   <meta name="theme-color" content="#ffcf33" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" /></noscript>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=3" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
@@ -75,6 +75,7 @@
     </header>
 
     <nav class="tile-grid" aria-label="Pick a game">
+      <button class="tile t-world"  data-go="world">      <span class="t-emoji">🧊</span><span class="t-name">World</span></button>
       <button class="tile t-green"  data-go="soccer">     <span class="t-emoji">⚽</span><span class="t-name">Soccer</span></button>
       <button class="tile t-gold"   data-go="cars">       <span class="t-emoji">🏎️</span><span class="t-name">Race</span></button>
       <button class="tile t-dark"   data-go="batman">     <span class="t-emoji">🦇</span><span class="t-name">Bats</span></button>
@@ -216,6 +217,21 @@
     <div class="score-board" aria-live="polite">🧱 Height <span id="stackScore">0</span> &nbsp;·&nbsp; 🏆 Best <span id="stackBest">0</span></div>
   </section>
 
+  <!-- ================= NOAH WORLD (Roblox-style playground) ================= -->
+  <section id="world" class="screen game card-world" aria-label="Noah World game" data-screen-label="World">
+    <h2>🧊 Noah World</h2>
+    <p class="card-text" id="worldMsg">Drag to run, tap JUMP, grab coins, finish the rainbow! 🌈</p>
+    <div class="world-stage" id="worldStage" data-no-swipe>
+      <canvas id="worldCanvas" aria-label="Noah World playground"></canvas>
+      <div class="world-stick" id="worldStick" role="application" aria-label="Move around">
+        <div class="world-knob" id="worldKnob"></div>
+      </div>
+      <div class="world-hint" id="worldHint" aria-hidden="true">👆</div>
+    </div>
+    <button id="worldJump" class="big-btn">JUMP 🦘</button>
+    <div class="score-board" aria-live="polite">🪙 <span id="worldScore">0</span> &nbsp;·&nbsp; 🏆 <span id="worldBest">0</span></div>
+  </section>
+
   <!-- ================= BIKES ================= -->
   <section id="bikes" class="screen game card-orange" aria-label="Bike Run game" data-screen-label="Bikes">
     <h2>🏍️ Bike Run</h2>
@@ -285,8 +301,8 @@
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" aria-hidden="true"></canvas>
 
-  <script src="script.js"></script>
-  <script src="mascot.js"></script>
+  <script src="script.js?v=3"></script>
+  <script src="mascot.js?v=3"></script>
   <script>
     // Service worker only on http(s) — file:// double-click stays build-free.
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
