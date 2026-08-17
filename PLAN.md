@@ -1,5 +1,13 @@
 # Noah's Super World — Improvement Plan
 
+> **Historical document (written 2026-06-02).** This is a dated multi-agent
+> audit and roadmap, not a description of the live site. It captured the app
+> as it was then (11 mini-games) and proposed later work. Fairness, juice,
+> trophies, the PWA shell, and Noah World have since shipped; proposed Garage /
+> Launch / Dig games and self-hosted fonts have not. See `README.md` for what
+> the code does today. Findings and line numbers below are the original review
+> and may no longer match `script.js`.
+
 > Produced by a multi-agent Opus research run: 7 analysis agents audited distinct
 > dimensions of the live code, every finding was adversarially fact-checked against
 > the actual source (53 confirmed, 2 dropped as inaccurate/constraint-breaking), a
