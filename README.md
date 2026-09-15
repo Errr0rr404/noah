@@ -107,7 +107,7 @@ After a JS/CSS change, bump the `?v=` query on the three asset links in
 `index.html` **and** the `CACHE` / `PRECACHE` entries in `sw.js` so
 installed tablets pick up the new files.
 
-The site previously lived on Netlify (`world-of-noah.netlify.app`). Production is Cloudflare only.
+Production is Cloudflare Workers only (`https://noah.worldofz.info`).
 
 ## Environment variables
 

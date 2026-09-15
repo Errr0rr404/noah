@@ -1,6 +1,6 @@
 /**
  * Static Noah Super World. Assets live in the repo root; this Worker only
- * attaches the same cache / security headers Netlify used to set.
+ * attaches cache / security headers for HTML, JS, CSS, and the PWA shell.
  */
 const ALWAYS = {
   "X-Content-Type-Options": "nosniff",
