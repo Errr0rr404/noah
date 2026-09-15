@@ -1,13 +1,3 @@
-# Claude Code local settings
-.claude/settings.local.json
-
-# OS / editor cruft
-.DS_Store
-Thumbs.db
-*.swp
-
-# Netlify
-.netlify/
-
-# Node (in case tooling is added later)
 node_modules/
+.wrangler/
+.dev.vars

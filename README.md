@@ -11,8 +11,8 @@ repo on a static host.
 
 - **Noah** — tablet-first play at home
 - **Family** — Mom, Dad, and sister Manha appear in the Family screen
-- **Whoever hosts it** — deploy the repo root as a static site (Netlify
-  is already configured)
+- **Whoever hosts it** — deploy the repo root as a static site (Cloudflare
+  Workers is already configured)
 
 ## Tech stack
 
@@ -26,7 +26,7 @@ Versions come from the files themselves (there is no `package.json`):
 | Motion | Canvas 2D for confetti and **Noah World**; CSS for the rest |
 | Fonts | Google Fonts CDN: **Baloo 2** + **Luckiest Guy**, with `system-ui` / `cursive` fallbacks |
 | PWA | `manifest.json` + `sw.js` (register only on `http`/`https`; `file://` stays a double-click) |
-| Host | Netlify static publish of the repo root (`netlify.toml`) |
+| Host | Cloudflare Worker `world-of-noah` — static assets of the repo root (`wrangler.jsonc`) |
 
 Asset cache-busting uses query strings (`styles.css?v=3`, `script.js?v=3`,
 `mascot.js?v=3`) plus a matching service-worker cache name
@@ -87,7 +87,10 @@ There is **no test runner, CI, or lint script**. Check by playing:
 
 ## Deploy
 
-Netlify, no build command. `netlify.toml` sets `publish = "."` and:
+Cloudflare Workers static assets, no build command. Public URL:
+**https://noah.worldofz.info** (preview: `world-of-noah.worldofz.workers.dev`).
+
+`wrangler.jsonc` + `worker.js` publish the repo root and set:
 
 - security headers (`X-Content-Type-Options`, `X-Frame-Options`,
   `Referrer-Policy`)
@@ -95,18 +98,20 @@ Netlify, no build command. `netlify.toml` sets `publish = "."` and:
   and `/sw.js` so a tablet does not keep yesterday's game
 - 1-hour cache on `/manifest.json`
 
-`404.html` meta-refreshes to `/`. Connect the GitHub repo
-(`https://github.com/Errr0rr404/noah.git`) to a Netlify site, or drag
-the repo root into the Netlify UI. There is no Dockerfile or other
-host config in tree.
+`404.html` meta-refreshes to `/`. A push to `main` on
+`https://github.com/Errr0rr404/noah.git` runs
+`.github/workflows/deploy-cloudflare.yml` (`CLOUDFLARE_API_TOKEN`).
+Local: `npx wrangler deploy` from the repo root.
 
 After a JS/CSS change, bump the `?v=` query on the three asset links in
 `index.html` **and** the `CACHE` / `PRECACHE` entries in `sw.js` so
 installed tablets pick up the new files.
 
+The site previously lived on Netlify (`world-of-noah.netlify.app`). Production is Cloudflare only.
+
 ## Environment variables
 
-None. The site reads no `process.env`, Netlify env, or secrets. All
+None. The site reads no `process.env` or secrets. All
 tuning is in the source files.
 
 Browser `localStorage` keys (names only; values are scores / flags):
@@ -130,13 +135,15 @@ resets on reload).
 ├── mascot.js       # Home mascot cheers (listens for `noah:confetti`)
 ├── manifest.json   # Add-to-home-screen metadata
 ├── sw.js           # Same-origin cache-first SW
-├── 404.html        # Netlify miss → home
-├── netlify.toml    # Publish root + cache / security headers
+├── 404.html        # Miss → home
+├── wrangler.jsonc  # Cloudflare Worker + custom domain
+├── worker.js       # Cache / security headers
+├── .github/workflows/deploy-cloudflare.yml
 ├── PLAN.md         # Dated 2026-06-02 audit / roadmap (historical)
 └── README.md       # This file
 ```
 
-No `docs/`, `package.json`, GitHub Actions, or test directory.
+No `docs/`, app `package.json`, or test directory.
 
 ## Historical notes
 
