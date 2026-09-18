@@ -1,5 +1,7 @@
 name: Deploy Cloudflare
 
+# Coolify auto-deploys this repo now.
+# Cloudflare deploy-on-push is disabled; this workflow is workflow_dispatch only.
 on:
   workflow_dispatch:
 
