@@ -5,9 +5,7 @@
   "account_id": "7f6a7b0733b0a9155bda2256b67c5f48",
   "workers_dev": true,
   "preview_urls": true,
-  "routes": [
-    { "pattern": "noah.worldofz.info", "custom_domain": true }
-  ],
+  "routes": [],
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
