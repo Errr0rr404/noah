@@ -260,8 +260,9 @@ function loop() {
 /* ============================================================
    SCREEN ROUTER  (one game at a time + swipe + arrows)
    ============================================================ */
-// Derive game order from the DOM so nav never drifts from the HTML tile grid.
-const ORDER = [...document.querySelectorAll('section.game')].map(s => s.id);
+// Prev/next follow the home tiles. The <section> blocks are in a different order
+// (world sits after stack), so arrows must read [data-go] on .tile.
+const ORDER = [...document.querySelectorAll('.tile[data-go]')].map(t => t.dataset.go);
 const Games = {};                       // id -> { enter, leave }
 const registerGame = (id, hooks) => { Games[id] = hooks; };
 
