@@ -19,6 +19,9 @@ button {
   font-family: inherit;
 }
 
+/* Author `display` (nav arrows, the robber) must not beat the hidden attribute. */
+[hidden] { display: none !important; }
+
 /* Visible keyboard / switch-access focus ring (does not show on touch/mouse) */
 :focus-visible {
   outline: 4px solid var(--sun);
