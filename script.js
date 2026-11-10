@@ -1846,6 +1846,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const scoreEl = $('bikeScore'), bestEl = $('bikeBest'), heartsEl = $('bikeHearts');
   function updateHearts() { if (heartsEl) heartsEl.textContent = '❤️'.repeat(Math.max(0, lives)) || '💔'; }
   let best = Store.getNum('bikeBest');
+  let recordThisRun = false;
   const GROUND = 26, BIKE_X = 36, BIKE_W = 40;
   let areaW = 0;
   let y = 0, vy = 0, dist = 0, speed = 3, running = false, rafId = null;
@@ -1858,6 +1859,17 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let lives = 3;            // hearts: a hit costs one, run ends only at 0
 
   bestEl.textContent = best;
+
+  // Same as stack and world: write the best as soon as this run passes it,
+  // so leaving for home keeps the distance. Crash still celebrates a record.
+  function noteMetres(m) {
+    if (m > best) {
+      best = m;
+      bestEl.textContent = best;
+      Store.set('bikeBest', best);
+      recordThisRun = true;
+    }
+  }
 
   function clearRocks() { rocks.forEach(r => r.el.remove()); rocks = []; }
   function clearCoins() { coins.forEach(c => c.el.remove()); coins = []; }
@@ -1924,7 +1936,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     // world speed ramps up slowly
     speed = 2.4 + dist * 0.0010;
     dist += speed * 0.12;
-    scoreEl.textContent = Math.floor(dist);
+    const metres = Math.floor(dist);
+    scoreEl.textContent = metres;
+    noteMetres(metres);
 
     // drifting clouds (slow parallax behind the action)
     for (const c of clouds) { c.x -= speed * c.sp; c.el.style.left = c.x + 'px'; }
@@ -2011,6 +2025,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     clearRocks(); clearCoins(); clearClouds(); clearStars();
     y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160;
     cloudGap = 0; starGap = 400; jumps = 0; lives = 3;
+    recordThisRun = false;
     shieldUntil = Date.now() + 2500; running = true;   // opening grace shield
     updateHearts();
     bike.classList.remove('shield');
@@ -2025,8 +2040,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     cancelAnimationFrame(rafId);
     Sound.crash(); Haptics.hit(); shakeEl(area);
     if (heartsEl) heartsEl.textContent = '💔';
-    const m = Math.floor(dist);
-    if (m > best) { best = m; bestEl.textContent = best; Store.set('bikeBest', best); confettiBurst(120); Sound.win(); }
+    noteMetres(Math.floor(dist));
+    if (recordThisRun) { confettiBurst(120); Sound.win(); }
     jumpBtn.textContent = 'RUN AGAIN 🔁';
   }
 
