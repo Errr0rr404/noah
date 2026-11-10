@@ -646,13 +646,17 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     bats.add(b);
     sky.appendChild(b);
     const life = setTimeout(() => { b.remove(); bats.delete(b); lifeTimers.delete(life); }, villain ? 2200 : 2800);
+    b._life = life;
     lifeTimers.add(life);
     b.addEventListener('click', (e) => {
-      clearTimeout(life); lifeTimers.delete(life);
+      // Removal waits 280ms, and pointer-events does not stop a second click
+      // already dispatched on this bat. One catch only.
+      if (b.classList.contains('caught')) return;
+      b.classList.add('caught');
+      clearTimeout(b._life); lifeTimers.delete(b._life);
       const pts = villain ? 3 : 1;
       score += pts;
       scoreEl.textContent = score;
-      b.classList.add('caught');
       bats.delete(b);
       setTimeout(() => b.remove(), 280);
       Sound.combo(score);
@@ -674,9 +678,11 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     moon.classList.add('cooldown');
     let caught = 0;
     bats.forEach(b => {
+      if (b.classList.contains('caught')) return;
+      b.classList.add('caught');
+      clearTimeout(b._life); lifeTimers.delete(b._life);
       score += b.classList.contains('villain') ? 3 : 1;
       caught++;
-      b.classList.add('caught');
       setTimeout(() => b.remove(), 280);
     });
     bats.clear();
