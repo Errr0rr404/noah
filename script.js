@@ -260,8 +260,9 @@ function loop() {
 /* ============================================================
    SCREEN ROUTER  (one game at a time + swipe + arrows)
    ============================================================ */
-// Derive game order from the DOM so nav never drifts from the HTML tile grid.
-const ORDER = [...document.querySelectorAll('section.game')].map(s => s.id);
+// Prev/next follow the home tiles. The <section> blocks are in a different order
+// (world sits after stack), so arrows must read [data-go] on .tile.
+const ORDER = [...document.querySelectorAll('.tile[data-go]')].map(t => t.dataset.go);
 const Games = {};                       // id -> { enter, leave }
 const registerGame = (id, hooks) => { Games[id] = hooks; };
 
@@ -352,7 +353,31 @@ const TILE_BEST = {
   minecraft: ['stackBest', '🏆'], world: ['worldBest', '🪙'], bikes: ['bikeBest', '🏆'],
   friends: ['friendsDone', '🔁'], trophies: ['trophiesEarned', '🏆'],
 };
+// Same list the trophy room renders. The home badge used to read a count that
+// was written only when that room opened.
+const TROPHIES = [
+  { id: 'soccer5',  key: 'soccerBest',  min: 5,   emoji: '⚽', label: 'Soccer Star' },
+  { id: 'race1',    key: 'raceWins',    min: 1,   emoji: '🏎️', label: 'Race Champ' },
+  { id: 'bat10',    key: 'batBest',     min: 10,  emoji: '🦇', label: 'Bat Catcher' },
+  { id: 'punch38',  key: 'punchBest',   min: 38,  emoji: '💙', label: 'Blue Belt' },
+  { id: 'punch70',  key: 'punchBest',   min: 70,  emoji: '🥋', label: 'Black Belt' },
+  { id: 'cop10',    key: 'copBest',     min: 10,  emoji: '🚓', label: 'Top Cop' },
+  { id: 'blast30',  key: 'blastBest',   min: 30,  emoji: '🔫', label: 'Blaster Ace' },
+  { id: 'stack10',  key: 'stackBest',   min: 10,  emoji: '🧱', label: 'Stack Master' },
+  { id: 'bike100',  key: 'bikeBest',    min: 100, emoji: '🏍️', label: 'Bike Hero' },
+  { id: 'fives1',   key: 'fives',       min: 1,   emoji: '🙌', label: 'Friend Five' },
+  { id: 'rounds',   key: 'friendsDone', min: 1,   emoji: '🔁', label: 'Round Champ' },
+  { id: 'goal1',    key: 'soccerBest',  min: 1,   emoji: '🎉', label: 'First Goal' },
+  { id: 'world8',   key: 'worldBest',   min: 8,   emoji: '🪙', label: 'Coin Hunter' },
+  { id: 'obby1',    key: 'worldObby',   min: 1,   emoji: '🧊', label: 'Obby Champ' },
+];
+function earnedTrophyCount() {
+  let n = 0;
+  for (const t of TROPHIES) if (Store.getNum(t.key) >= t.min) n++;
+  return n;
+}
 function refreshTileBadges() {
+  Store.set('trophiesEarned', earnedTrophyCount());
   document.querySelectorAll('.tile').forEach(tile => {
     const cfg = TILE_BEST[tile.dataset.go];
     let badge = tile.querySelector('.t-best');
@@ -455,7 +480,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         showFlash(streak >= 3 ? `🔥 ${streak} IN A ROW! 🔥` : cheers[randInt(0, cheers.length - 1)]);
         shakeEl(field);
         Sound.combo(streak);
-        if (streak > best) { best = streak; bestEl.textContent = best; Store.set('soccerBest', best); }
+        // 🏆 is the most goals in a visit, not the streak (that is the 🔥 figure).
+        // Home badge and the Soccer Star / First Goal trophies read this number.
+        if (score > best) { best = score; bestEl.textContent = best; Store.set('soccerBest', best); }
         if (streak % 3 === 0) { confettiBurst(70); Sound.winGoal(); }
       } else {
         streak = 0; streakEl.textContent = 0;
@@ -646,13 +673,17 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     bats.add(b);
     sky.appendChild(b);
     const life = setTimeout(() => { b.remove(); bats.delete(b); lifeTimers.delete(life); }, villain ? 2200 : 2800);
+    b._life = life;
     lifeTimers.add(life);
     b.addEventListener('click', (e) => {
-      clearTimeout(life); lifeTimers.delete(life);
+      // Removal waits 280ms, and pointer-events does not stop a second click
+      // already dispatched on this bat. One catch only.
+      if (b.classList.contains('caught')) return;
+      b.classList.add('caught');
+      clearTimeout(b._life); lifeTimers.delete(b._life);
       const pts = villain ? 3 : 1;
       score += pts;
       scoreEl.textContent = score;
-      b.classList.add('caught');
       bats.delete(b);
       setTimeout(() => b.remove(), 280);
       Sound.combo(score);
@@ -674,9 +705,11 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     moon.classList.add('cooldown');
     let caught = 0;
     bats.forEach(b => {
+      if (b.classList.contains('caught')) return;
+      b.classList.add('caught');
+      clearTimeout(b._life); lifeTimers.delete(b._life);
       score += b.classList.contains('villain') ? 3 : 1;
       caught++;
-      b.classList.add('caught');
       setTimeout(() => b.remove(), 280);
     });
     bats.clear();
@@ -1026,7 +1059,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       score = 0; streak = 0;
       scoreEl.textContent = 0; streakEl.textContent = 0;
       active = true;
-      msg.textContent = 'Goofy space critters invaded! Tap them to BLAST them! 👽💥';
+      msg.textContent = 'Goofy space critters invaded! Tap to BLAST them — hit the 💣 to clear them all! 👽💥';
       spawnTimer = setTimeout(spawnTarget, 500);
     },
     leave() {
@@ -1846,6 +1879,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const scoreEl = $('bikeScore'), bestEl = $('bikeBest'), heartsEl = $('bikeHearts');
   function updateHearts() { if (heartsEl) heartsEl.textContent = '❤️'.repeat(Math.max(0, lives)) || '💔'; }
   let best = Store.getNum('bikeBest');
+  let recordThisRun = false;
   const GROUND = 26, BIKE_X = 36, BIKE_W = 40;
   let areaW = 0;
   let y = 0, vy = 0, dist = 0, speed = 3, running = false, rafId = null;
@@ -1858,6 +1892,17 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   let lives = 3;            // hearts: a hit costs one, run ends only at 0
 
   bestEl.textContent = best;
+
+  // Same as stack and world: write the best as soon as this run passes it,
+  // so leaving for home keeps the distance. Crash still celebrates a record.
+  function noteMetres(m) {
+    if (m > best) {
+      best = m;
+      bestEl.textContent = best;
+      Store.set('bikeBest', best);
+      recordThisRun = true;
+    }
+  }
 
   function clearRocks() { rocks.forEach(r => r.el.remove()); rocks = []; }
   function clearCoins() { coins.forEach(c => c.el.remove()); coins = []; }
@@ -1924,7 +1969,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     // world speed ramps up slowly
     speed = 2.4 + dist * 0.0010;
     dist += speed * 0.12;
-    scoreEl.textContent = Math.floor(dist);
+    const metres = Math.floor(dist);
+    scoreEl.textContent = metres;
+    noteMetres(metres);
 
     // drifting clouds (slow parallax behind the action)
     for (const c of clouds) { c.x -= speed * c.sp; c.el.style.left = c.x + 'px'; }
@@ -2011,6 +2058,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     clearRocks(); clearCoins(); clearClouds(); clearStars();
     y = 0; vy = 0; dist = 0; speed = 3; spawnGap = 80; coinGap = 160;
     cloudGap = 0; starGap = 400; jumps = 0; lives = 3;
+    recordThisRun = false;
     shieldUntil = Date.now() + 2500; running = true;   // opening grace shield
     updateHearts();
     bike.classList.remove('shield');
@@ -2025,8 +2073,8 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
     cancelAnimationFrame(rafId);
     Sound.crash(); Haptics.hit(); shakeEl(area);
     if (heartsEl) heartsEl.textContent = '💔';
-    const m = Math.floor(dist);
-    if (m > best) { best = m; bestEl.textContent = best; Store.set('bikeBest', best); confettiBurst(120); Sound.win(); }
+    noteMetres(Math.floor(dist));
+    if (recordThisRun) { confettiBurst(120); Sound.win(); }
     jumpBtn.textContent = 'RUN AGAIN 🔁';
   }
 
@@ -2177,23 +2225,6 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const wall = $('trophyWall');
   const note = document.querySelector('#trophies .card-text');
   if (!wall) return;
-
-  const TROPHIES = [
-    { id: 'soccer5',  key: 'soccerBest',  min: 5,   emoji: '⚽', label: 'Soccer Star' },
-    { id: 'race1',    key: 'raceWins',    min: 1,   emoji: '🏎️', label: 'Race Champ' },
-    { id: 'bat10',    key: 'batBest',     min: 10,  emoji: '🦇', label: 'Bat Catcher' },
-    { id: 'punch38',  key: 'punchBest',   min: 38,  emoji: '💙', label: 'Blue Belt' },
-    { id: 'punch70',  key: 'punchBest',   min: 70,  emoji: '🥋', label: 'Black Belt' },
-    { id: 'cop10',    key: 'copBest',     min: 10,  emoji: '🚓', label: 'Top Cop' },
-    { id: 'blast30',  key: 'blastBest',   min: 30,  emoji: '🔫', label: 'Blaster Ace' },
-    { id: 'stack10',  key: 'stackBest',   min: 10,  emoji: '🧱', label: 'Stack Master' },
-    { id: 'bike100',  key: 'bikeBest',    min: 100, emoji: '🏍️', label: 'Bike Hero' },
-    { id: 'fives1',   key: 'fives',       min: 1,   emoji: '🙌', label: 'Friend Five' },
-    { id: 'rounds',   key: 'friendsDone', min: 1,   emoji: '🔁', label: 'Round Champ' },
-    { id: 'goal1',    key: 'soccerBest',  min: 1,   emoji: '🎉', label: 'First Goal' },
-    { id: 'world8',   key: 'worldBest',   min: 8,   emoji: '🪙', label: 'Coin Hunter' },
-    { id: 'obby1',    key: 'worldObby',   min: 1,   emoji: '🧊', label: 'Obby Champ' },
-  ];
 
   function render() {
     wall.innerHTML = '';
