@@ -527,9 +527,18 @@ h2 {
   border-radius: 18px;
   padding: 10px 16px;
 }
-/* Ink text on bright gold/yellow stages so instructions stay readable */
+/* Ink on a 55% white chip. White text on the 18% chip is under 4.5:1 on the
+   bright stages. Dark stages (bats, blaster) stay white; they already clear it. */
+.card-green .card-text,
 .card-gold .card-text,
+.card-red .card-text,
+.card-blue .card-text,
+.card-cube .card-text,
+.card-orange .card-text,
+.card-pink .card-text,
+.card-purple .card-text,
 .card-yellow .card-text,
+.card-world .card-text,
 .card-trophy .card-text {
   color: var(--ink);
   background: rgba(255,255,255,.55);
