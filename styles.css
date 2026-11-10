@@ -803,9 +803,14 @@ h2 {
   position: absolute;
   top: 16px; right: 22px;
   font-size: 3rem;
+  line-height: 1;
   cursor: pointer;
   transition: transform .2s;
   z-index: 3;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
 }
 .moon:active { transform: scale(.85); }
 .bat-logo {
