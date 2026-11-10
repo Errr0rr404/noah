@@ -1059,7 +1059,7 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
       score = 0; streak = 0;
       scoreEl.textContent = 0; streakEl.textContent = 0;
       active = true;
-      msg.textContent = 'Goofy space critters invaded! Tap them to BLAST them! 👽💥';
+      msg.textContent = 'Goofy space critters invaded! Tap to BLAST them — hit the 💣 to clear them all! 👽💥';
       spawnTimer = setTimeout(spawnTarget, 500);
     },
     leave() {
