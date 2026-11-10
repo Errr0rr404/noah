@@ -456,7 +456,9 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
         showFlash(streak >= 3 ? `🔥 ${streak} IN A ROW! 🔥` : cheers[randInt(0, cheers.length - 1)]);
         shakeEl(field);
         Sound.combo(streak);
-        if (streak > best) { best = streak; bestEl.textContent = best; Store.set('soccerBest', best); }
+        // 🏆 is the most goals in a visit, not the streak (that is the 🔥 figure).
+        // Home badge and the Soccer Star / First Goal trophies read this number.
+        if (score > best) { best = score; bestEl.textContent = best; Store.set('soccerBest', best); }
         if (streak % 3 === 0) { confettiBurst(70); Sound.winGoal(); }
       } else {
         streak = 0; streakEl.textContent = 0;
