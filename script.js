@@ -353,7 +353,31 @@ const TILE_BEST = {
   minecraft: ['stackBest', '🏆'], world: ['worldBest', '🪙'], bikes: ['bikeBest', '🏆'],
   friends: ['friendsDone', '🔁'], trophies: ['trophiesEarned', '🏆'],
 };
+// Same list the trophy room renders. The home badge used to read a count that
+// was written only when that room opened.
+const TROPHIES = [
+  { id: 'soccer5',  key: 'soccerBest',  min: 5,   emoji: '⚽', label: 'Soccer Star' },
+  { id: 'race1',    key: 'raceWins',    min: 1,   emoji: '🏎️', label: 'Race Champ' },
+  { id: 'bat10',    key: 'batBest',     min: 10,  emoji: '🦇', label: 'Bat Catcher' },
+  { id: 'punch38',  key: 'punchBest',   min: 38,  emoji: '💙', label: 'Blue Belt' },
+  { id: 'punch70',  key: 'punchBest',   min: 70,  emoji: '🥋', label: 'Black Belt' },
+  { id: 'cop10',    key: 'copBest',     min: 10,  emoji: '🚓', label: 'Top Cop' },
+  { id: 'blast30',  key: 'blastBest',   min: 30,  emoji: '🔫', label: 'Blaster Ace' },
+  { id: 'stack10',  key: 'stackBest',   min: 10,  emoji: '🧱', label: 'Stack Master' },
+  { id: 'bike100',  key: 'bikeBest',    min: 100, emoji: '🏍️', label: 'Bike Hero' },
+  { id: 'fives1',   key: 'fives',       min: 1,   emoji: '🙌', label: 'Friend Five' },
+  { id: 'rounds',   key: 'friendsDone', min: 1,   emoji: '🔁', label: 'Round Champ' },
+  { id: 'goal1',    key: 'soccerBest',  min: 1,   emoji: '🎉', label: 'First Goal' },
+  { id: 'world8',   key: 'worldBest',   min: 8,   emoji: '🪙', label: 'Coin Hunter' },
+  { id: 'obby1',    key: 'worldObby',   min: 1,   emoji: '🧊', label: 'Obby Champ' },
+];
+function earnedTrophyCount() {
+  let n = 0;
+  for (const t of TROPHIES) if (Store.getNum(t.key) >= t.min) n++;
+  return n;
+}
 function refreshTileBadges() {
+  Store.set('trophiesEarned', earnedTrophyCount());
   document.querySelectorAll('.tile').forEach(tile => {
     const cfg = TILE_BEST[tile.dataset.go];
     let badge = tile.querySelector('.t-best');
@@ -2201,23 +2225,6 @@ $('partyBtn').addEventListener('click', () => { confettiBurst(160); Sound.win();
   const wall = $('trophyWall');
   const note = document.querySelector('#trophies .card-text');
   if (!wall) return;
-
-  const TROPHIES = [
-    { id: 'soccer5',  key: 'soccerBest',  min: 5,   emoji: '⚽', label: 'Soccer Star' },
-    { id: 'race1',    key: 'raceWins',    min: 1,   emoji: '🏎️', label: 'Race Champ' },
-    { id: 'bat10',    key: 'batBest',     min: 10,  emoji: '🦇', label: 'Bat Catcher' },
-    { id: 'punch38',  key: 'punchBest',   min: 38,  emoji: '💙', label: 'Blue Belt' },
-    { id: 'punch70',  key: 'punchBest',   min: 70,  emoji: '🥋', label: 'Black Belt' },
-    { id: 'cop10',    key: 'copBest',     min: 10,  emoji: '🚓', label: 'Top Cop' },
-    { id: 'blast30',  key: 'blastBest',   min: 30,  emoji: '🔫', label: 'Blaster Ace' },
-    { id: 'stack10',  key: 'stackBest',   min: 10,  emoji: '🧱', label: 'Stack Master' },
-    { id: 'bike100',  key: 'bikeBest',    min: 100, emoji: '🏍️', label: 'Bike Hero' },
-    { id: 'fives1',   key: 'fives',       min: 1,   emoji: '🙌', label: 'Friend Five' },
-    { id: 'rounds',   key: 'friendsDone', min: 1,   emoji: '🔁', label: 'Round Champ' },
-    { id: 'goal1',    key: 'soccerBest',  min: 1,   emoji: '🎉', label: 'First Goal' },
-    { id: 'world8',   key: 'worldBest',   min: 8,   emoji: '🪙', label: 'Coin Hunter' },
-    { id: 'obby1',    key: 'worldObby',   min: 1,   emoji: '🧊', label: 'Obby Champ' },
-  ];
 
   function render() {
     wall.innerHTML = '';
