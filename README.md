@@ -28,9 +28,9 @@ Versions come from the files themselves (there is no `package.json`):
 | PWA | `manifest.json` + `sw.js` (register only on `http`/`https`; `file://` stays a double-click) |
 | Host | Cloudflare Worker `world-of-noah` — static assets of the repo root (`wrangler.jsonc`) |
 
-Asset cache-busting uses query strings (`styles.css?v=3`, `script.js?v=3`,
-`mascot.js?v=3`) plus a matching service-worker cache name
-(`noah-super-world-v3`). Bump those together when shipping JS/CSS changes.
+Asset cache-busting uses query strings (`styles.css?v=4`, `script.js?v=4`,
+`mascot.js?v=4`) plus a matching service-worker cache name
+(`noah-super-world-v4`). Bump those together when shipping JS/CSS changes.
 
 ## Screens
 
