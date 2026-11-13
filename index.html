@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Noah's Super World!</title>
+  <meta name="robots" content="noindex, nofollow" />
   <meta name="description" content="Noah's Super World — soccer, cars, Batman, Minecraft, Noah World and more fun mini-games made just for Noah!" />
   <!-- Home-screen / tablet app feel -->
   <meta name="theme-color" content="#ffcf33" />
@@ -13,9 +14,9 @@
   <meta name="apple-mobile-web-app-title" content="Noah's World" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" media="print" id="fontcss" />
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" /></noscript>
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
@@ -301,15 +302,8 @@
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" aria-hidden="true"></canvas>
 
-  <script src="script.js?v=4"></script>
-  <script src="mascot.js?v=4"></script>
-  <script>
-    // Service worker only on http(s) — file:// double-click stays build-free.
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
-      });
-    }
-  </script>
+  <script src="script.js?v=5"></script>
+  <script src="mascot.js?v=5"></script>
+  <script src="boot.js?v=5"></script>
 </body>
 </html>

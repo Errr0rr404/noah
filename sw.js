@@ -1,12 +1,13 @@
 /* Noah's Super World — tiny offline cache for the static toybox.
    Cache-first for the core files so a flaky tablet connection still works. */
-const CACHE = 'noah-super-world-v4';
+const CACHE = 'noah-super-world-v5';
 const PRECACHE = [
   './',
   './index.html',
-  './styles.css?v=4',
-  './script.js?v=4',
-  './mascot.js?v=4',
+  './styles.css?v=5',
+  './script.js?v=5',
+  './mascot.js?v=5',
+  './boot.js?v=5',
   './manifest.json',
   './404.html',
 ];
